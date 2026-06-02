@@ -11,11 +11,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -31,9 +26,15 @@ jobs:
           cd api
           zip -r ../func-package.zip .
 
-      - name: Deploy to Flex Consumption Function App
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Flex Consumption
         run: |
           az functionapp deployment source config-zip \
             --resource-group rg-dstyle-survey \
             --name func-dstyle-survey \
-            --src ./func-package.zip
+            --src ./func-package.zip \
+            --build-remote true
