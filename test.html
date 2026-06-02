@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>接続テスト</title>
+</head>
+<body>
+  <h1>Azure Functions 接続テスト</h1>
+  <button onclick="testSave()">テストデータを保存</button>
+  <p id="result"></p>
+
+  <script>
+    async function testSave() {
+      document.getElementById('result').textContent = '送信中...';
+      try {
+        const res = await fetch('/api/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenant: 'test',
+            type: 'test',
+            data: { message: 'テスト成功！', time: new Date().toISOString() }
+          })
+        });
+        const json = await res.json();
+        document.getElementById('result').textContent =
+          res.ok ? '✅ 保存成功！' : '❌ エラー: ' + JSON.stringify(json);
+      } catch (e) {
+        document.getElementById('result').textContent = '❌ エラー: ' + e.message;
+      }
+    }
+  </script>
+</body>
+</html>
