@@ -1,0 +1,8 @@
+{
+  "routes": [
+    {
+      "route": "/api/*",
+      "rewrite": "https://func-dstyle-survey-gab2dwg3gdcqecgz.japaneast-01.azurewebsites.net/api/*"
+    }
+  ]
+}
