@@ -2,31 +2,47 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Herbelle 体験後アンケート</title>
     <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f7f9fa; color: #333; line-height: 1.6; padding: 20px; }
-        .container { max-width: 600px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        h1 { font-size: 20px; text-align: center; color: #4A5D4E; margin-bottom: 20px; }
-        p { font-size: 14px; color: #666; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; font-weight: bold; margin-bottom: 8px; font-size: 14px; }
-        input[type="text"], select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
-        textarea { height: 100px; resize: vertical; }
-        .radio-group { margin-top: 5px; }
-        .radio-group label { display: inline-block; font-weight: normal; margin-right: 15px; cursor: pointer; }
-        button { width: 100%; padding: 12px; background-color: #4A5D4E; color: white; border: none; border-radius: 4px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f7f9fa; color: #333; line-height: 1.6; padding: 24px 16px; margin: 0; }
+        .container { max-width: 680px; margin: 0 auto; background: #fff; padding: 32px 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        h1 { font-size: 24px; text-align: center; color: #4A5D4E; margin-bottom: 12px; font-weight: bold; }
+        p { font-size: 15px; color: #666; margin-bottom: 24px; text-align: center; }
+        .form-group { margin-bottom: 28px; }
+        label { display: block; font-weight: bold; margin-bottom: 10px; font-size: 16px; color: #4A5D4E; }
+        
+        /* 入力エリアの拡大（iPadでタップしやすく） */
+        input[type="text"], select, textarea { width: 100%; padding: 14px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; background-color: #fafafa; -webkit-appearance: none; appearance: none; } /* 💡 appearance を追加しました */
+        input[type="text"]:focus, select:focus, textarea:focus { border-color: #4A5D4E; background-color: #fff; outline: none; }
+        textarea { height: 120px; resize: vertical; }
+        
+        /* ラジオボタンを大きなボタン風にしてタップ領域を拡大 */
+        .radio-group { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+        .radio-label { display: flex; align-items: center; padding: 14px; background: #fdfdfd; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; font-size: 16px; transition: background 0.2s; }
+        .radio-label:hover { background: #f5f7f5; }
+        .radio-label input[type="radio"] { margin-right: 12px; width: 20px; height: 20px; accent-color: #4A5D4E; }
+        
+        /* 送信ボタンの最適化 */
+        button { width: 100%; padding: 16px; background-color: #4A5D4E; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: background 0.2s; box-shadow: 0 4px 6px rgba(74,93,78,0.2); -webkit-appearance: none; appearance: none; } /* 💡 appearance を追加しました */
         button:hover { background-color: #3b4d3f; }
-        .message { margin-top: 20px; padding: 10px; border-radius: 4px; font-weight: bold; text-align: center; display: none; }
-        .success { background-color: #e6f4ea; color: #137333; }
-        .error { background-color: #fce8e6; color: #c5221f; }
+        
+        .message { margin-top: 24px; padding: 16px; border-radius: 8px; font-weight: bold; text-align: center; display: none; font-size: 16px; }
+        .success { background-color: #e6f4ea; color: #137333; border: 1px solid #137333; }
+        .error { background-color: #fce8e6; color: #c5221f; border: 1px solid #c5221f; }
+        
+        /* 横向きや少し広い画面用の調整 */
+        @media(min-width: 480px) {
+            .radio-group { flex-direction: row; flex-wrap: wrap; }
+            .radio-label { flex: 1 1 calc(50% - 10px); justify-content: flex-start; }
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>Herbelle 無料体験アンケート</h1>
-    <p>本日は無料体験にお越しいただきありがとうございました。今後のサービス向上のため、率直なご感想をお聞かせいただけますと幸いです。</p>
+    <p>本日は無料体験にお越しいただきありがとうございました。<br>今後のサービス向上のため、率直なご感想をお聞かせいただけますと幸いです。</p>
     
     <form id="surveyForm">
         <div class="form-group">
@@ -47,24 +63,24 @@
         <div class="form-group">
             <label>本日の満足度はいかがでしたか？</label>
             <div class="radio-group">
-                <label><input type="radio" name="satisfaction" value="大変満足" checked> 大変満足</label>
-                <label><input type="radio" name="satisfaction" value="満足"> 満足</label>
-                <label><input type="radio" name="satisfaction" value="普通"> 普通</label>
-                <label><input type="radio" name="satisfaction" value="やや不満"> やや不満</label>
+                <label class="radio-label"><input type="radio" name="satisfaction" value="大変満足" checked> 大変満足</label>
+                <label class="radio-label"><input type="radio" name="satisfaction" value="満足"> 満足</label>
+                <label class="radio-label"><input type="radio" name="satisfaction" value="普通"> 普通</label>
+                <label class="radio-label"><input type="radio" name="satisfaction" value="やや不満"> やや不満</label>
             </div>
         </div>
 
         <div class="form-group">
-            <label>リラクゼーションテック（発汗量や体調データの可視化）機能に興味はありますか？</label>
+            <label>リラクゼーションテック（データ可視化等）機能に興味はありますか？</label>
             <div class="radio-group">
-                <label><input type="radio" name="techInterest" value="とても興味がある" checked> とても興味がある</label>
-                <label><input type="radio" name="techInterest" value="少し興味がある"> 少し興味がある</label>
-                <label><input type="radio" name="techInterest" value="あまり興味はない"> あまり興味はない</label>
+                <label class="radio-label"><input type="radio" name="techInterest" value="とても興味がある" checked> とても興味がある</label>
+                <label class="radio-label"><input type="radio" name="techInterest" value="少し興味がある"> 少し興味がある</label>
+                <label class="radio-label"><input type="radio" name="techInterest" value="あまり興味はない"> あまり興味はない</label>
             </div>
         </div>
 
         <div class="form-group">
-            <label for="feedback">ご意見・ご感想、スタッフへのメッセージなど</label>
+            <label for="feedback">ご意見・ご感想、スタッフへのメッセージ</label>
             <textarea id="feedback" placeholder="温まり具合や、スタジオの雰囲気など自由にご記入ください。"></textarea>
         </div>
 
@@ -77,11 +93,9 @@
 <script>
     document.getElementById('surveyForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
         const statusMessage = document.getElementById('statusMessage');
         statusMessage.style.display = 'none';
 
-        // フォームから入力値を取得してまとめる
         const inputData = {
             customerName: document.getElementById('customerName').value,
             menu: document.getElementById('menu').value,
@@ -90,15 +104,13 @@
             feedback: document.getElementById('feedback').value
         };
 
-        // 💡 汎用APIのルールに合わせて箱詰めする
         const payload = {
-            tenant: "herbelle-chitosehunabashi",            // 👈 テナント名（これで他と区別できます）
-            type: "free_trial_survey",          // 👈 データの種類（無料体験アンケート）
-            data: inputData                     // 👈 集めたアンケートの回答中身
+            tenant: "herbelle-chitosehunabashi",
+            type: "free_trial_survey",
+            data: inputData
         };
 
         try {
-            // 先ほど開通させたAPIのエンドポイントへ送信
             const response = await fetch('/api/log', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -108,7 +120,8 @@
             if (response.ok) {
                 statusMessage.className = "message success";
                 statusMessage.innerText = "✅ アンケートが正常に送信されました。ご協力ありがとうございました！";
-                document.getElementById('surveyForm').reset(); // フォームをクリア
+                document.getElementById('surveyForm').reset();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             } else {
                 const errData = await response.json();
                 throw new Error(errData.error || '送信エラーが発生しました');
@@ -117,7 +130,6 @@
             statusMessage.className = "message error";
             statusMessage.innerText = `❌ エラー: ${error.message}`;
         }
-        
         statusMessage.style.display = 'block';
     });
 </script>
