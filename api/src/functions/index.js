@@ -2,7 +2,7 @@ const { app } = require('@azure/functions');
 const { CosmosClient } = require('@azure/cosmos');
 
 app.http('log', {
-    methods: ['POST', 'GET'], // 💡GET（読み出し）も許可します
+    methods: ['POST', 'GET', 'DELETE'],
     authLevel: 'anonymous',
     handler: async (request, context) => {
         try {
@@ -12,10 +12,34 @@ app.http('log', {
                 .container(process.env.COSMOS_CONTAINER);
 
             // ----------------------------------------------------
+            // 🗑️ 【DELETEの場合】管理画面からのデータ削除処理
+            // ----------------------------------------------------
+            if (request.method === 'DELETE') {
+                const url = new URL(request.url);
+                const id = url.searchParams.get('id');
+                const tenant = url.searchParams.get('tenant');
+
+                if (!id || !tenant) {
+                    return {
+                        status: 400,
+                        headers: { 'Content-Type': 'application/json' },
+                        jsonBody: { error: 'id と tenant は必須です' }
+                    };
+                }
+
+                await container.item(id, tenant).delete();
+
+                return {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                    jsonBody: { status: 'deleted' }
+                };
+            }
+
+            // ----------------------------------------------------
             // 📊 【GETの場合】管理画面からのデータ読み出し処理
             // ----------------------------------------------------
             if (request.method === 'GET') {
-                // URLの?tenant=xxx&type=yyy を取得
                 const url = new URL(request.url);
                 const tenant = url.searchParams.get('tenant');
                 const type = url.searchParams.get('type');
@@ -28,7 +52,6 @@ app.http('log', {
                     };
                 }
 
-                // Cosmos DBから特定のテナントとタイプのデータを検索
                 const querySpec = {
                     query: "SELECT * FROM c WHERE c.tenant = @tenant AND c.type = @type",
                     parameters: [
@@ -60,7 +83,6 @@ app.http('log', {
                 };
             }
 
-            // Cosmos DBへ保存
             await container.items.create({
                 id: require('crypto').randomUUID(),
                 tenant,
