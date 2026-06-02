@@ -1,137 +1,250 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Herbelle 管理画面</title>
-    <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f7f9fa; color: #333; padding: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        h1 { font-size: 22px; color: #4A5D4E; margin-bottom: 20px; border-bottom: 2px solid #4A5D4E; padding-bottom: 10px; }
-        
-        /* 認証エリア */
-        .login-box { max-width: 400px; margin: 50px auto; padding: 30px; background: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; }
-        .login-box input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 16px; text-align: center; }
-        .login-box button { width: 100%; padding: 12px; background: #4A5D4E; color: white; border: none; border-radius: 4px; font-size: 16px; font-weight: bold; cursor: pointer; }
-        
-        /* メインコンテンツ（初期は非表示） */
-        #adminContent { display: none; }
-        
-        /* テーブルスタイル */
-        .table-wrapper { overflow-x: auto; margin-top: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background-color: #4A5D4E; color: white; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
-        
-        .btn-refresh { padding: 10px 20px; background: #4A5D4E; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-bottom: 20px; }
-        .loading { font-weight: bold; color: #666; margin: 20px 0; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Herbelle 管理画面</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f5f7f5; color: #333; }
+
+    /* ログイン */
+    .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .login-box { background: white; border-radius: 12px; padding: 40px 32px; width: 100%; max-width: 380px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); text-align: center; }
+    .login-box h2 { color: #4A5D4E; margin-bottom: 24px; font-size: 22px; }
+    .login-box input { width: 100%; padding: 14px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 16px; margin-bottom: 16px; text-align: center; }
+    .login-box button { width: 100%; padding: 14px; background: #4A5D4E; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+    .login-box button:hover { background: #3b4d3f; }
+    .login-error { color: #c0392b; font-size: 14px; margin-top: 10px; display: none; }
+
+    /* メイン */
+    #adminContent { display: none; }
+    .topbar { background: #4A5D4E; color: white; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar h1 { font-size: 18px; }
+    .topbar .logout { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+
+    .main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+
+    /* サマリーカード */
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .card { background: white; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .card .num { font-size: 32px; font-weight: bold; color: #4A5D4E; }
+    .card .label { font-size: 13px; color: #888; margin-top: 4px; }
+    .card.highlight { border-left: 4px solid #4A5D4E; }
+    .card.alert { border-left: 4px solid #e74c3c; }
+    .card .num.green { color: #27ae60; }
+    .card .num.red { color: #e74c3c; }
+
+    /* ツールバー */
+    .toolbar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+    .toolbar button { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; }
+    .btn-refresh { background: #4A5D4E; color: white; }
+    .btn-csv { background: #27ae60; color: white; }
+    .btn-refresh:hover { background: #3b4d3f; }
+    .btn-csv:hover { background: #219a52; }
+    .filter-select { padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 14px; background: white; }
+
+    /* テーブル */
+    .table-wrap { background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; }
+    .table-scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { background: #4A5D4E; color: white; padding: 14px 12px; text-align: left; white-space: nowrap; }
+    td { padding: 12px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f9fbf9; }
+
+    /* バッジ */
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; white-space: nowrap; }
+    .badge-green { background: #e8f5e9; color: #2e7d32; }
+    .badge-yellow { background: #fff8e1; color: #e65100; }
+    .badge-gray { background: #f5f5f5; color: #777; }
+    .badge-red { background: #fce8e6; color: #c62828; }
+
+    /* 削除ボタン */
+    .btn-delete { background: none; border: 1px solid #ddd; color: #999; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+    .btn-delete:hover { border-color: #e74c3c; color: #e74c3c; }
+
+    .loading { text-align: center; padding: 40px; color: #888; font-size: 16px; }
+    .empty { text-align: center; padding: 40px; color: #888; }
+  </style>
 </head>
 <body>
 
-<div id="loginArea" class="login-box">
-    <h2 style="color:#4A5D4E; margin-bottom:20px;">Herbelle 管理認証</h2>
+<!-- ログイン画面 -->
+<div class="login-wrap" id="loginArea">
+  <div class="login-box">
+    <h2>🌿 Herbelle 管理画面</h2>
     <input type="password" id="passwordInput" placeholder="パスワードを入力">
     <button onclick="checkPassword()">ログイン</button>
-    <p id="loginError" style="color:red; font-size:14px; margin-top:10px; display:none;">⚠️ パスワードが違います</p>
+    <div class="login-error" id="loginError">⚠️ パスワードが違います</div>
+  </div>
 </div>
 
-<div id="adminContent" class="container">
-    <h1>Herbelle 無料体験アンケート 回答一覧</h1>
-    <button class="btn-refresh" onclick="fetchSurveys()">🔄 データを最新に更新</button>
-    
-    <div id="loadingMessage" class="loading" style="display:none;">データを読み込み中...</div>
-    
-    <div class="table-wrapper">
-        <table>
-            <thead>
-                <tr>
-                    <th>日時</th>
-                    <th>お名前</th>
-                    <th>体験メニュー</th>
-                    <th>満足度</th>
-                    <th>テックへの興味</th>
-                    <th>ご意見・ご感想</th>
-                </tr>
-            </thead>
-            <tbody id="surveyTableBody">
-                </tbody>
-        </table>
+<!-- 管理画面 -->
+<div id="adminContent">
+  <div class="topbar">
+    <h1>🌿 Herbelle アンケート管理</h1>
+    <button class="logout" onclick="logout()">ログアウト</button>
+  </div>
+
+  <div class="main">
+    <!-- サマリー -->
+    <div class="summary" id="summaryCards">
+      <div class="card highlight"><div class="num" id="totalCount">—</div><div class="label">総回答数</div></div>
+      <div class="card highlight"><div class="num green" id="continueCount">—</div><div class="label">継続希望</div></div>
+      <div class="card alert"><div class="num red" id="considerCount">—</div><div class="label">検討中</div></div>
+      <div class="card"><div class="num" id="referralCount">—</div><div class="label">紹介できる</div></div>
     </div>
+
+    <!-- ツールバー -->
+    <div class="toolbar">
+      <button class="btn-refresh" onclick="fetchData()">🔄 更新</button>
+      <button class="btn-csv" onclick="downloadCSV()">📥 CSVダウンロード</button>
+      <select class="filter-select" id="filterContinuation" onchange="renderTable()">
+        <option value="">継続意向：すべて</option>
+        <option value="ぜひ続けたい">ぜひ続けたい</option>
+        <option value="検討したい">検討したい</option>
+        <option value="もう一度体験したい">もう一度体験したい</option>
+        <option value="今は難しい">今は難しい</option>
+      </select>
+      <select class="filter-select" id="filterSatisfaction" onchange="renderTable()">
+        <option value="">満足度：すべて</option>
+        <option value="大変満足">大変満足</option>
+        <option value="満足">満足</option>
+        <option value="普通">普通</option>
+        <option value="やや不満">やや不満</option>
+      </select>
+    </div>
+
+    <!-- テーブル -->
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>日時</th>
+              <th>お名前</th>
+              <th>メニュー</th>
+              <th>満足度</th>
+              <th>体の変化</th>
+              <th>継続意向</th>
+              <th>頻度</th>
+              <th>紹介</th>
+              <th>ご意見</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr><td colspan="10" class="loading">読み込み中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
-    // 💡 ご指定いただいたパスワード
-    const SECRET_PW = "Herbelle19860701";
+  const SECRET_PW = "Herbelle19860701";
+  let allData = [];
 
-    function checkPassword() {
-        const input = document.getElementById('passwordInput').value;
-        const loginArea = document.getElementById('loginArea');
-        const adminContent = document.getElementById('adminContent');
-        const loginError = document.getElementById('loginError');
-
-        if (input === SECRET_PW) {
-            loginArea.style.display = 'none';
-            adminContent.style.display = 'block';
-            fetchSurveys(); // ログイン成功時にデータを取得
-        } else {
-            loginError.style.display = 'block';
-        }
+  function checkPassword() {
+    if (document.getElementById('passwordInput').value === SECRET_PW) {
+      document.getElementById('loginArea').style.display = 'none';
+      document.getElementById('adminContent').style.display = 'block';
+      fetchData();
+    } else {
+      document.getElementById('loginError').style.display = 'block';
     }
+  }
+  document.getElementById('passwordInput').addEventListener('keypress', e => { if (e.key === 'Enter') checkPassword(); });
 
-    // Enterキーでもログインできるようにする
-    document.getElementById('passwordInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') checkPassword();
-    });
+  function logout() {
+    document.getElementById('loginArea').style.display = 'flex';
+    document.getElementById('adminContent').style.display = 'none';
+    document.getElementById('passwordInput').value = '';
+  }
 
-    async function fetchSurveys() {
-        const tbody = document.getElementById('surveyTableBody');
-        const loading = document.getElementById('loadingMessage');
-        
-        tbody.innerHTML = '';
-        loading.style.display = 'block';
+  const params = new URLSearchParams(location.search);
+  const tenant = params.get('tenant') || 'herbelle-chitosefunabashi';
+  const type = params.get('type') || 'free_trial_survey';
 
-        try {
-            // 💡 Cosmos DBからデータを引っ張ってくるAPI（GETリクエスト）
-            // ※Static Web Appsの仕様に合わせて構築します
-            const response = await fetch('/api/log?tenant=herbelle-chitosehunabashi&type=free_trial_survey');
-            
-            if (!response.ok) throw new Error('データの取得に失敗しました');
-            
-            const data = await response.json();
-            
-            if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">まだ回答データがありません。</td></tr>';
-                return;
-            }
-
-            // 日時が新しい順に並び替え
-            data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-            data.forEach(item => {
-                const tr = document.createElement('tr');
-                
-                // 日時を日本時間に変換して見やすく
-                const date = new Date(item.createdAt).toLocaleString('ja-JP');
-
-                tr.innerHTML = `
-                    <td style="white-space:nowrap;">${date}</td>
-                    <td style="white-space:nowrap; font-weight:bold;">${item.customerName || ''}</td>
-                    <td style="white-space:nowrap;">${item.menu || ''}</td>
-                    <td style="white-space:nowrap;">${item.satisfaction || ''}</td>
-                    <td>${item.techInterest || ''}</td>
-                    <td>${item.feedback || ''}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-        } catch (error) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:red;">❌ エラー: ${error.message}</td></tr>`;
-        } finally {
-            loading.style.display = 'none';
-        }
+  async function fetchData() {
+    document.getElementById('tableBody').innerHTML = '<tr><td colspan="10" class="loading">読み込み中...</td></tr>';
+    try {
+      const res = await fetch(`/api/logs?tenant=${tenant}&type=${type}`);
+      if (!res.ok) throw new Error('取得失敗');
+      allData = await res.json();
+      allData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      updateSummary();
+      renderTable();
+    } catch (e) {
+      document.getElementById('tableBody').innerHTML = `<tr><td colspan="10" class="empty">❌ ${e.message}</td></tr>`;
     }
+  }
+
+  function updateSummary() {
+    document.getElementById('totalCount').textContent = allData.length;
+    document.getElementById('continueCount').textContent = allData.filter(d => d.continuation === 'ぜひ続けたい').length;
+    document.getElementById('considerCount').textContent = allData.filter(d => d.continuation === '検討したい').length;
+    document.getElementById('referralCount').textContent = allData.filter(d => d.referral === 'いる').length;
+  }
+
+  function renderTable() {
+    const fc = document.getElementById('filterContinuation').value;
+    const fs = document.getElementById('filterSatisfaction').value;
+    const filtered = allData.filter(d => (!fc || d.continuation === fc) && (!fs || d.satisfaction === fs));
+    const tbody = document.getElementById('tableBody');
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="10" class="empty">該当データがありません</td></tr>';
+      return;
+    }
+    tbody.innerHTML = filtered.map(d => {
+      const date = new Date(d.createdAt).toLocaleString('ja-JP', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
+      const cBadge = d.continuation === 'ぜひ続けたい' ? 'badge-green' : d.continuation === '検討したい' ? 'badge-yellow' : d.continuation === '今は難しい' ? 'badge-red' : 'badge-gray';
+      const sBadge = d.satisfaction === '大変満足' || d.satisfaction === '満足' ? 'badge-green' : d.satisfaction === 'やや不満' ? 'badge-red' : 'badge-gray';
+      return `<tr>
+        <td style="white-space:nowrap;color:#888;font-size:13px">${date}</td>
+        <td style="white-space:nowrap;font-weight:bold">${d.customerName || '—'}</td>
+        <td style="white-space:nowrap">${d.menu || '—'}</td>
+        <td><span class="badge ${sBadge}">${d.satisfaction || '—'}</span></td>
+        <td style="font-size:13px">${d.bodyChange || '—'}</td>
+        <td><span class="badge ${cBadge}">${d.continuation || '—'}</span></td>
+        <td style="font-size:13px;white-space:nowrap">${d.frequency || '—'}</td>
+        <td style="font-size:13px">${d.referral || '—'}</td>
+        <td style="font-size:13px;max-width:200px">${d.feedback || ''}</td>
+        <td><button class="btn-delete" onclick="deleteItem('${d.id}')">削除</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function deleteItem(id) {
+    if (!confirm('このデータを削除しますか？')) return;
+    try {
+      const res = await fetch(`/api/log?id=${id}&tenant=${tenant}`, { method: 'DELETE' });
+      if (res.ok) {
+        allData = allData.filter(d => d.id !== id);
+        updateSummary();
+        renderTable();
+      } else { alert('削除に失敗しました'); }
+    } catch (e) { alert('削除エラー: ' + e.message); }
+  }
+
+  function downloadCSV() {
+    if (allData.length === 0) { alert('データがありません'); return; }
+    const headers = ['日時','お名前','メニュー','満足度','体の変化','継続意向','通える頻度','紹介','ご意見'];
+    const rows = allData.map(d => [
+      new Date(d.createdAt).toLocaleString('ja-JP'),
+      d.customerName || '', d.menu || '', d.satisfaction || '',
+      d.bodyChange || '', d.continuation || '', d.frequency || '',
+      d.referral || '', (d.feedback || '').replace(/,/g, '、').replace(/\n/g, ' ')
+    ].map(v => `"${v}"`).join(','));
+    const bom = '\uFEFF';
+    const csv = bom + [headers.join(','), ...rows].join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `herbelle_survey_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  }
 </script>
 </body>
 </html>
