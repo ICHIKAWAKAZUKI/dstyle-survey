@@ -1,11 +1,6 @@
 {
-  "name": "dstyle-survey-api",
+  "name": "dstyle-survey",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "start": "func start"
-  },
   "dependencies": {
     "@azure/cosmos": "^4.2.0"
   }
