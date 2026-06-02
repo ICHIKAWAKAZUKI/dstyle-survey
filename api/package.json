@@ -2,7 +2,7 @@
   "name": "dstyle-survey-api",
   "version": "1.0.0",
   "description": "",
-  "main": "src/functions/*.js",
+  "main": "src/functions/index.js",
   "scripts": {
     "start": "func start"
   },
