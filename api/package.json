@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "dstyle-survey-api",
   "version": "1.0.0",
   "description": "",
@@ -7,7 +7,9 @@
     "start": "func start"
   },
   "dependencies": {
+    "@azure/cosmos": "^4.2.0",
     "@azure/functions": "^4.0.0",
-    "@azure/cosmos": "^4.2.0"
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
   }
 }

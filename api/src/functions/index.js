@@ -1,3 +1,4 @@
+require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
 const { app } = require('@azure/functions');
 const { CosmosClient } = require('@azure/cosmos');
 const crypto = require('crypto');
