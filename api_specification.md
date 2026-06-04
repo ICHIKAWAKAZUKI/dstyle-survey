@@ -1,6 +1,6 @@
 # DSHグループ アンケートシステム API仕様書
 
-> バージョン: 1.0.0  
+> バージョン: 1.1.0  
 > 最終更新: 2026年6月  
 > ベースURL: `https://{FUNCTION_APP_NAME}.japaneast-01.azurewebsites.net`  
 > フロントエンド経由URL: `https://{CUSTOM_DOMAIN}/api`
@@ -17,6 +17,8 @@
    - [POST /api/log](#post-apilog)
    - [GET /api/log](#get-apilog)
    - [DELETE /api/log](#delete-apilog)
+   - [GET /api/period](#get-apiperiod)
+   - [POST /api/period](#post-apiperiod)
 5. [エラーレスポンス一覧](#5-エラーレスポンス一覧)
 6. [データモデル](#6-データモデル)
 7. [環境変数一覧](#7-環境変数一覧)
@@ -60,6 +62,7 @@
 ```
 tenant 値の例:
   herbelle-chitosefunabashi  → 千歳船橋店
+  diana-fitting              → 補正下着試着
   shinjuku                   → 新宿店（追加例）
 ```
 
@@ -87,6 +90,8 @@ tenant 値の例:
 | `POST` | `/api/log` | 不要 | アンケート回答データを保存 |
 | `GET` | `/api/log` | **必要** | アンケート回答データを取得 |
 | `DELETE` | `/api/log` | **必要** | アンケート回答データを削除 |
+| `GET` | `/api/period` | 不要 | アンケート受付期間を取得 |
+| `POST` | `/api/period` | **必要** | アンケート受付期間を保存・更新 |
 
 ---
 
@@ -129,10 +134,6 @@ Content-Type: application/json
 }
 ```
 
-| フィールド | 型 | 説明 |
-|-----------|-----|------|
-| `token` | string | 認証トークン（32文字16進数）。8時間で自動失効 |
-
 **エラー時**
 
 | ステータス | 条件 | レスポンス |
@@ -171,12 +172,7 @@ Content-Type: application/json
   "type": "{SURVEY_TYPE}",
   "data": {
     "customerName": "山田 花子",
-    "menu": "よもぎ蒸し",
     "satisfaction": "大変満足",
-    "bodyChange": "とても感じた",
-    "continuation": "ぜひ続けたい",
-    "frequency": "週1回",
-    "referral": "いる",
     "feedback": "とても良かったです"
   }
 }
@@ -215,9 +211,7 @@ curl -X POST https://{FUNCTION_APP_NAME}.japaneast-01.azurewebsites.net/api/log 
     "type": "{SURVEY_TYPE}",
     "data": {
       "customerName": "山田 花子",
-      "menu": "よもぎ蒸し",
-      "satisfaction": "大変満足",
-      "continuation": "ぜひ続けたい"
+      "satisfaction": "大変満足"
     }
   }'
 ```
@@ -259,28 +253,13 @@ x-admin-token: {TOKEN}
     "tenant": "{TENANT_ID}",
     "type": "{SURVEY_TYPE}",
     "customerName": "山田 花子",
-    "menu": "よもぎ蒸し",
     "satisfaction": "大変満足",
-    "bodyChange": "とても感じた",
-    "continuation": "ぜひ続けたい",
-    "frequency": "週1回",
-    "referral": "いる",
-    "feedback": "とても良かったです",
     "createdAt": "2026-06-02T03:49:02.005Z",
     "_rid": "（CosmosDB内部）",
     "_ts": 1780372146
   }
 ]
 ```
-
-| フィールド | 型 | 説明 |
-|-----------|-----|------|
-| `id` | string | CosmosDBのドキュメントID（UUID） |
-| `tenant` | string | テナントID |
-| `type` | string | アンケート種別 |
-| `createdAt` | string | 保存日時（ISO 8601形式） |
-| `_rid`, `_ts` | - | CosmosDB内部フィールド（無視してOK） |
-| その他フィールド | any | POST時に `data` に含めた内容 |
 
 **エラー時**
 
@@ -317,12 +296,6 @@ x-admin-token: {TOKEN}
 | `id` | string | ✅ | 削除するドキュメントのID |
 | `tenant` | string | ✅ | テナントID（CosmosDBのパーティションキー） |
 
-**リクエストヘッダー**
-
-| ヘッダー | 必須 | 説明 |
-|---------|------|------|
-| `x-admin-token` | ✅ | POST /api/auth で取得したトークン |
-
 #### レスポンス
 
 **成功時 `200 OK`**
@@ -346,6 +319,123 @@ x-admin-token: {TOKEN}
 ```bash
 curl -X DELETE "https://{FUNCTION_APP_NAME}.japaneast-01.azurewebsites.net/api/log?id={DOCUMENT_ID}&tenant={TENANT_ID}" \
   -H "x-admin-token: {TOKEN}"
+```
+
+---
+
+### GET /api/period
+
+テナントのアンケート受付期間を取得します。認証不要（アンケート画面が起動時に呼び出す）。
+
+#### リクエスト
+
+```
+GET /api/period?tenant={TENANT_ID}
+```
+
+**クエリパラメータ**
+
+| パラメータ | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| `tenant` | string | ✅ | テナントID |
+
+#### レスポンス
+
+**成功時 `200 OK`**
+
+```json
+{
+  "startDate": "2026-07-01",
+  "endDate": "2026-09-30"
+}
+```
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `startDate` | string \| null | 受付開始日（YYYY-MM-DD形式）。未設定の場合は null |
+| `endDate` | string \| null | 受付終了日（YYYY-MM-DD形式）。未設定の場合は null |
+
+> 💡 `startDate`・`endDate` がともに null の場合は期間制限なし（常時受付中）を意味します。
+
+**エラー時**
+
+| ステータス | 条件 | レスポンス |
+|-----------|------|-----------|
+| `400 Bad Request` | `tenant` が未指定 | `{"error": "tenant は必須です"}` |
+| `500 Internal Server Error` | DBエラー等 | `{"error": "エラーメッセージ"}` |
+
+#### curl 例
+
+```bash
+curl "https://{FUNCTION_APP_NAME}.japaneast-01.azurewebsites.net/api/period?tenant={TENANT_ID}"
+```
+
+---
+
+### POST /api/period
+
+テナントのアンケート受付期間を保存・更新します。**認証必須。**
+
+管理画面から期間を設定する際に呼び出します。Cosmos DBに保存されるため、コードを変更せずに期間を管理できます。
+
+#### リクエスト
+
+```
+POST /api/period
+Content-Type: application/json
+x-admin-token: {TOKEN}
+```
+
+**リクエストボディ**
+
+```json
+{
+  "tenant": "{TENANT_ID}",
+  "startDate": "2026-07-01",
+  "endDate": "2026-09-30"
+}
+```
+
+| フィールド | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| `tenant` | string | ✅ | テナントID |
+| `startDate` | string \| null | | 受付開始日（YYYY-MM-DD形式）。null で制限なし |
+| `endDate` | string \| null | | 受付終了日（YYYY-MM-DD形式）。null で制限なし |
+
+#### レスポンス
+
+**成功時 `200 OK`**
+
+```json
+{
+  "status": "ok",
+  "startDate": "2026-07-01",
+  "endDate": "2026-09-30"
+}
+```
+
+**エラー時**
+
+| ステータス | 条件 | レスポンス |
+|-----------|------|-----------|
+| `400 Bad Request` | `tenant` が未指定 | `{"error": "tenant は必須です"}` |
+| `401 Unauthorized` | トークンなし・無効 | `{"error": "認証が必要です"}` |
+| `500 Internal Server Error` | DB保存エラー等 | `{"error": "エラーメッセージ"}` |
+
+#### curl 例
+
+```bash
+# 期間を設定
+curl -X POST https://{FUNCTION_APP_NAME}.japaneast-01.azurewebsites.net/api/period \
+  -H "Content-Type: application/json" \
+  -H "x-admin-token: {TOKEN}" \
+  -d '{"tenant":"{TENANT_ID}","startDate":"2026-07-01","endDate":"2026-09-30"}'
+
+# 期間制限を削除（常時受付に戻す）
+curl -X POST https://{FUNCTION_APP_NAME}.japaneast-01.azurewebsites.net/api/period \
+  -H "Content-Type: application/json" \
+  -H "x-admin-token: {TOKEN}" \
+  -d '{"tenant":"{TENANT_ID}","startDate":null,"endDate":null}'
 ```
 
 ---
@@ -379,15 +469,22 @@ curl -X DELETE "https://{FUNCTION_APP_NAME}.japaneast-01.azurewebsites.net/api/l
   "type": "{SURVEY_TYPE}",
   "createdAt": "2026-06-02T03:49:02.005Z",
 
-  // ↓ POST時の data フィールドの内容が展開される
+  // ↓ POST時の data フィールドの内容が展開される（フィールドは自由）
   "customerName": "山田 花子",
-  "menu": "よもぎ蒸し",
   "satisfaction": "大変満足",
-  "bodyChange": "とても感じた",
-  "continuation": "ぜひ続けたい",
-  "frequency": "週1回",
-  "referral": "いる",
   "feedback": "とても良かったです"
+}
+```
+
+### 期間設定ドキュメント（Cosmos DB）
+
+```json
+{
+  "id": "period_{TENANT_ID}",
+  "tenant": "{TENANT_ID}",
+  "startDate": "2026-07-01",
+  "endDate": "2026-09-30",
+  "updatedAt": "2026-06-04T10:00:00.000Z"
 }
 ```
 
@@ -410,7 +507,9 @@ Azure Functions に設定する環境変数です。
 | `COSMOS_CONNECTION` | ✅ | Cosmos DB接続文字列 | `AccountEndpoint=https://...;AccountKey=...;` |
 | `COSMOS_DATABASE` | ✅ | データベース名 | `dstyle-survey` |
 | `COSMOS_CONTAINER` | ✅ | コンテナ名 | `logs` |
-| `ADMIN_PASSWORD_{TENANT}` | ✅ | テナントごとのパスワード | `ADMIN_PASSWORD_HERBELLE_CHITOSEFUNABASHI=（パスワード）` |
+| `ADMIN_PASSWORD_{TENANT}` | ✅ | テナントごとのパスワード | `ADMIN_PASSWORD_DIANA_FITTING=（パスワード）` |
+
+> 💡 受付期間はCosmos DBで管理するため、環境変数での期間設定は不要です。
 
 **ADMIN_PASSWORD の命名規則：**
 
@@ -418,11 +517,9 @@ Azure Functions に設定する環境変数です。
 ADMIN_PASSWORD_ + tenant名を大文字 + ハイフンをアンダースコアに変換
 
 例:
-  tenant: herbelle-chitosefunabashi
-  → ADMIN_PASSWORD_HERBELLE_CHITOSEFUNABASHI
-
-  tenant: shinjuku
-  → ADMIN_PASSWORD_SHINJUKU
+  tenant: herbelle-chitosefunabashi → ADMIN_PASSWORD_HERBELLE_CHITOSEFUNABASHI
+  tenant: diana-fitting             → ADMIN_PASSWORD_DIANA_FITTING
+  tenant: shinjuku                  → ADMIN_PASSWORD_SHINJUKU
 ```
 
 ---
@@ -447,74 +544,32 @@ TOKEN=$(curl -s -X POST \
 
 echo "Token: $TOKEN"
 
-# ② アンケートデータを保存（認証不要）
-curl -X POST \
-  ${BASE_URL}/api/log \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"tenant\": \"${TENANT}\",
-    \"type\": \"${SURVEY_TYPE}\",
-    \"data\": {
-      \"customerName\": \"山田 花子\",
-      \"menu\": \"よもぎ蒸し\",
-      \"satisfaction\": \"大変満足\",
-      \"continuation\": \"ぜひ続けたい\"
-    }
-  }"
+# ② 受付期間を確認（認証不要）
+curl "${BASE_URL}/api/period?tenant=${TENANT}"
 
-# ③ データ一覧を取得（認証必要）
-curl \
-  "${BASE_URL}/api/log?tenant=${TENANT}&type=${SURVEY_TYPE}" \
+# ③ 受付期間を設定（認証必要）
+curl -X POST ${BASE_URL}/api/period \
+  -H "Content-Type: application/json" \
+  -H "x-admin-token: ${TOKEN}" \
+  -d "{\"tenant\":\"${TENANT}\",\"startDate\":\"2026-07-01\",\"endDate\":\"2026-09-30\"}"
+
+# ④ アンケートデータを保存（認証不要）
+curl -X POST ${BASE_URL}/api/log \
+  -H "Content-Type: application/json" \
+  -d "{\"tenant\":\"${TENANT}\",\"type\":\"${SURVEY_TYPE}\",\"data\":{\"customerName\":\"山田 花子\",\"satisfaction\":\"大変満足\"}}"
+
+# ⑤ データ一覧を取得（認証必要）
+curl "${BASE_URL}/api/log?tenant=${TENANT}&type=${SURVEY_TYPE}" \
   -H "x-admin-token: ${TOKEN}"
 
-# ④ データを削除（認証必要）
+# ⑥ データを削除（認証必要）
 DOCUMENT_ID="{DOCUMENT_ID}"
 curl -X DELETE \
   "${BASE_URL}/api/log?id=${DOCUMENT_ID}&tenant=${TENANT}" \
   -H "x-admin-token: ${TOKEN}"
 ```
 
-### JavaScript（fetch）での使用例
-
-```javascript
-const BASE_URL = 'https://{FUNCTION_APP_NAME}.japaneast-01.azurewebsites.net';
-const TENANT = '{TENANT_ID}';
-const SURVEY_TYPE = '{SURVEY_TYPE}';
-
-// ① ログイン
-const authRes = await fetch(`${BASE_URL}/api/auth`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ password: '{PASSWORD}', tenant: TENANT })
-});
-const { token } = await authRes.json();
-
-// ② データ保存
-await fetch(`${BASE_URL}/api/log`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    tenant: TENANT,
-    type: SURVEY_TYPE,
-    data: { customerName: '山田 花子', satisfaction: '大変満足' }
-  })
-});
-
-// ③ データ取得
-const logRes = await fetch(
-  `${BASE_URL}/api/log?tenant=${TENANT}&type=${SURVEY_TYPE}`,
-  { headers: { 'x-admin-token': token } }
-);
-const data = await logRes.json();
-
-// ④ データ削除
-await fetch(
-  `${BASE_URL}/api/log?id=${data[0].id}&tenant=${TENANT}`,
-  { method: 'DELETE', headers: { 'x-admin-token': token } }
-);
-```
-
 ---
 
-*DSHグループ アンケートシステム API仕様書 v1.0.0*  
+*DSHグループ アンケートシステム API仕様書 v1.1.0*  
 *ディライトテクノロジーズ事業部*
