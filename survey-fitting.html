@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>補正下着 試着体験アンケート(サンプル)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f9f4f7; color: #333; padding: 20px 16px 40px; }
+    .container { max-width: 640px; margin: 0 auto; }
+
+    .header { background: #7B4F6E; color: white; border-radius: 12px 12px 0 0; padding: 28px 24px; text-align: center; }
+    .header h1 { font-size: 22px; margin-bottom: 8px; }
+    .header p { font-size: 14px; opacity: 0.85; line-height: 1.6; }
+    .header .period-badge { margin-top: 10px; font-size: 13px; opacity: 0.75; }
+
+    .body { background: white; border-radius: 0 0 12px 12px; padding: 28px 24px 32px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+
+    .section { margin-bottom: 28px; }
+    .section-label { font-weight: bold; font-size: 16px; color: #7B4F6E; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .section-label .num { background: #7B4F6E; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+    .required { color: #c0392b; font-size: 12px; margin-left: 4px; }
+
+    input[type="text"], select, textarea {
+      width: 100%; padding: 14px; border: 1.5px solid #ddd; border-radius: 8px;
+      font-size: 16px; background: #fafafa; -webkit-appearance: none; appearance: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus, select:focus, textarea:focus { border-color: #7B4F6E; background: #fff; outline: none; }
+    textarea { height: 110px; resize: vertical; }
+
+    .radio-group { display: flex; flex-direction: column; gap: 10px; }
+    .radio-label {
+      display: flex; align-items: center; padding: 14px 16px;
+      border: 1.5px solid #ddd; border-radius: 8px; cursor: pointer;
+      font-size: 15px; transition: all 0.2s; background: #fafafa;
+    }
+    .radio-label:hover { border-color: #7B4F6E; background: #f8f0f5; }
+    .radio-label input[type="radio"] { margin-right: 12px; width: 20px; height: 20px; accent-color: #7B4F6E; flex-shrink: 0; }
+    .radio-label.selected { border-color: #7B4F6E; background: #f3eaf0; font-weight: bold; }
+
+    .submit-btn {
+      width: 100%; padding: 18px; background: #7B4F6E; color: white;
+      border: none; border-radius: 10px; font-size: 18px; font-weight: bold;
+      cursor: pointer; transition: background 0.2s; margin-top: 8px;
+      box-shadow: 0 4px 12px rgba(123,79,110,0.3); -webkit-appearance: none;
+    }
+    .submit-btn:hover { background: #6a4060; }
+    .submit-btn:disabled { background: #999; cursor: not-allowed; }
+
+    .message { margin-top: 20px; padding: 16px; border-radius: 8px; font-weight: bold; text-align: center; display: none; font-size: 16px; }
+    .success { background: #f9f0f5; color: #7B4F6E; border: 1px solid #d4a8c7; }
+    .error-msg { background: #fce8e6; color: #c5221f; border: 1px solid #f5c6c2; }
+
+    .period-error {
+      text-align: center; padding: 60px 24px;
+      background: white; border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+    .period-error .icon { font-size: 48px; margin-bottom: 16px; }
+    .period-error h2 { color: #7B4F6E; font-size: 22px; margin-bottom: 12px; }
+    .period-error p { color: #888; font-size: 15px; line-height: 1.7; }
+    .period-error .period-info { margin-top: 20px; padding: 16px; background: #f9f4f7; border-radius: 8px; font-size: 14px; color: #666; }
+
+    .loading-screen { text-align: center; padding: 60px 24px; color: #888; font-size: 16px; }
+
+    .divider { border: none; border-top: 1px solid #eee; margin: 8px 0 28px; }
+
+    @media (min-width: 480px) {
+      .radio-group.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container" id="app">
+  <div class="loading-screen">読み込み中...</div>
+</div>
+
+<!-- アンケート本体テンプレート（非表示） -->
+<div id="surveyTemplate" style="display:none">
+  <div class="header">
+    <h1>👗 補正下着 試着体験アンケート</h1>
+    <p>本日は試着体験にお越しいただきありがとうございました。<br>率直なご感想をお聞かせください（約2分）</p>
+    <p class="period-badge" id="periodBadge"></p>
+  </div>
+  <div class="body">
+    <form id="surveyForm">
+      <!-- Q1 お名前 -->
+      <div class="section">
+        <div class="section-label"><span class="num">1</span>お名前<span class="required">※必須</span></div>
+        <input type="text" id="customerName" required placeholder="山田 花子">
+      </div>
+      <!-- Q2 試着アイテム -->
+      <div class="section">
+        <div class="section-label"><span class="num">2</span>本日試着されたアイテム</div>
+        <select id="item">
+          <option value="ブラジャー">ブラジャー</option>
+          <option value="ガードル">ガードル</option>
+          <option value="ボディスーツ">ボディスーツ</option>
+          <option value="ウエストニッパー">ウエストニッパー</option>
+          <option value="複数アイテム">複数アイテム</option>
+        </select>
+      </div>
+      <hr class="divider">
+      <!-- Q3 着用感の満足度 -->
+      <div class="section">
+        <div class="section-label"><span class="num">3</span>着用感の満足度は？</div>
+        <div class="radio-group two-col" id="satisfactionGroup">
+          <label class="radio-label"><input type="radio" name="satisfaction" value="大変満足"> 😊 大変満足</label>
+          <label class="radio-label"><input type="radio" name="satisfaction" value="満足"> 🙂 満足</label>
+          <label class="radio-label"><input type="radio" name="satisfaction" value="普通"> 😐 普通</label>
+          <label class="radio-label"><input type="radio" name="satisfaction" value="やや不満"> 😕 やや不満</label>
+        </div>
+      </div>
+      <!-- Q4 体型の変化 -->
+      <div class="section">
+        <div class="section-label"><span class="num">4</span>着用後、体型の変化を感じましたか？</div>
+        <div class="radio-group" id="bodyChangeGroup">
+          <label class="radio-label"><input type="radio" name="bodyChange" value="とても感じた"> ✨ とても感じた（シルエットの変化など）</label>
+          <label class="radio-label"><input type="radio" name="bodyChange" value="少し感じた"> 👍 少し感じた</label>
+          <label class="radio-label"><input type="radio" name="bodyChange" value="あまり感じなかった"> 🤔 あまり感じなかった</label>
+          <label class="radio-label"><input type="radio" name="bodyChange" value="わからない"> ❓ まだわからない</label>
+        </div>
+      </div>
+      <!-- Q5 継続意向 -->
+      <div class="section">
+        <div class="section-label"><span class="num">5</span>継続して着用したいと思いますか？</div>
+        <div class="radio-group" id="continuationGroup">
+          <label class="radio-label"><input type="radio" name="continuation" value="ぜひ続けたい"> ✅ ぜひ続けたい・毎日着用したい</label>
+          <label class="radio-label"><input type="radio" name="continuation" value="検討したい"> 🤔 もう少し検討したい</label>
+          <label class="radio-label"><input type="radio" name="continuation" value="特別な日に使いたい"> 🎀 特別な日だけ使いたい</label>
+          <label class="radio-label"><input type="radio" name="continuation" value="今は難しい"> ⏸ 今はまだ難しい</label>
+        </div>
+      </div>
+      <!-- Q6 購入意向 -->
+      <div class="section">
+        <div class="section-label"><span class="num">6</span>購入を検討していますか？</div>
+        <div class="radio-group" id="purchaseGroup">
+          <label class="radio-label"><input type="radio" name="purchase" value="すぐに購入したい"> 🛍️ すぐに購入したい</label>
+          <label class="radio-label"><input type="radio" name="purchase" value="検討中"> 💭 少し検討したい</label>
+          <label class="radio-label"><input type="radio" name="purchase" value="もう少し情報が欲しい"> 📋 もう少し情報が欲しい</label>
+          <label class="radio-label"><input type="radio" name="purchase" value="今は考えていない"> ✋ 今は考えていない</label>
+        </div>
+      </div>
+      <!-- Q7 紹介 -->
+      <div class="section">
+        <div class="section-label"><span class="num">7</span>ご紹介できそうなお友達・ご家族はいますか？</div>
+        <div class="radio-group two-col" id="referralGroup">
+          <label class="radio-label"><input type="radio" name="referral" value="いる"> 👥 いる</label>
+          <label class="radio-label"><input type="radio" name="referral" value="いない"> — いない</label>
+          <label class="radio-label"><input type="radio" name="referral" value="検討する"> 💭 検討してみる</label>
+        </div>
+      </div>
+      <hr class="divider">
+      <!-- Q8 自由記入 -->
+      <div class="section">
+        <div class="section-label"><span class="num">8</span>ご意見・スタッフへのメッセージ（自由記入）</div>
+        <textarea id="feedback" placeholder="着用感・デザイン・スタッフへのメッセージなど、自由にご記入ください。"></textarea>
+      </div>
+      <button type="submit" class="submit-btn" id="submitBtn">アンケートを送信する 📩</button>
+    </form>
+    <div id="statusMessage" class="message"></div>
+  </div>
+</div>
+
+<script>
+  // ============================================================
+  // ⚙️ 設定エリア（tenant・typeのみ変更してください）
+  // 期間は Azure Functions の環境変数で管理します：
+  //   SURVEY_START_DIANA_FITTING=2026-07-01
+  //   SURVEY_END_DIANA_FITTING=2026-09-30
+  // ============================================================
+  var TENANT = new URLSearchParams(location.search).get('tenant') || 'diana-fitting';
+  var TYPE   = new URLSearchParams(location.search).get('type')   || 'fitting_survey';
+  // ============================================================
+
+  var BASE_URL = location.hostname === 'localhost'
+    ? 'http://localhost:7071'
+    : 'https://func-dstyle-survey-gab2dwg3gdcqecgz.japaneast-01.azurewebsites.net';
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '';
+    var parts = dateStr.split('-');
+    return parts[0] + '年' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
+  }
+
+  function checkPeriod(startDate, endDate) {
+    var today = new Date().toISOString().slice(0, 10);
+    if (startDate && today < startDate) return 'before';
+    if (endDate   && today > endDate)   return 'after';
+    return 'active';
+  }
+
+  function renderPeriodError(status, startDate, endDate) {
+    var startStr = formatDate(startDate);
+    var endStr   = formatDate(endDate);
+    var periodText = '';
+    if (startStr && endStr) periodText = startStr + ' 〜 ' + endStr;
+    else if (startStr) periodText = startStr + ' 以降';
+    else if (endStr)   periodText = endStr + ' まで';
+
+    var isBefore = status === 'before';
+    var app = document.getElementById('app');
+    app.innerHTML = '';
+    var div = document.createElement('div');
+    div.className = 'period-error';
+    div.innerHTML =
+      '<div class="icon">' + (isBefore ? '🗓️' : '🔒') + '</div>' +
+      '<h2>' + (isBefore ? '受付開始前です' : '受付期間が終了しました') + '</h2>' +
+      '<p>' + (isBefore
+        ? 'このアンケートはまだ受付を開始していません。<br>開始日以降に再度アクセスしてください。'
+        : 'このアンケートの受付期間は終了しました。<br>ご協力いただいた方々、ありがとうございました。'
+      ) + '</p>' +
+      (periodText ? '<div class="period-info">📅 受付期間：' + periodText + '</div>' : '');
+    app.appendChild(div);
+  }
+
+  function renderSurvey(endDate) {
+    var template = document.getElementById('surveyTemplate');
+    var app = document.getElementById('app');
+    app.innerHTML = '';
+    while (template.firstChild) {
+      app.appendChild(template.firstChild);
+    }
+
+    // 受付期間バッジを設定
+    var badge = document.getElementById('periodBadge');
+    if (endDate && badge) {
+      badge.textContent = '📅 受付期間：' + formatDate(endDate) + ' まで';
+    }
+
+    // ラジオ選択時ハイライト
+    document.querySelectorAll('.radio-group').forEach(function(group) {
+      group.querySelectorAll('.radio-label').forEach(function(label) {
+        label.addEventListener('click', function() {
+          group.querySelectorAll('.radio-label').forEach(function(l) { l.classList.remove('selected'); });
+          label.classList.add('selected');
+        });
+      });
+    });
+
+    // 送信処理
+    document.getElementById('surveyForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var btn = document.getElementById('submitBtn');
+      var msg = document.getElementById('statusMessage');
+      btn.disabled = true;
+      btn.textContent = '送信中...';
+      msg.style.display = 'none';
+
+      function getRadio(name) {
+        var el = document.querySelector('input[name="' + name + '"]:checked');
+        return el ? el.value : '未選択';
+      }
+
+      var payload = {
+        tenant: TENANT,
+        type:   TYPE,
+        data: {
+          customerName: document.getElementById('customerName').value,
+          item:         document.getElementById('item').value,
+          satisfaction: getRadio('satisfaction'),
+          bodyChange:   getRadio('bodyChange'),
+          continuation: getRadio('continuation'),
+          purchase:     getRadio('purchase'),
+          referral:     getRadio('referral'),
+          feedback:     document.getElementById('feedback').value,
+        }
+      };
+
+      try {
+        var res = await fetch(BASE_URL + '/api/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          msg.className = 'message success';
+          msg.innerHTML = '✅ アンケートが送信されました。<br>ご協力ありがとうございました！';
+          document.getElementById('surveyForm').reset();
+          document.querySelectorAll('.radio-label').forEach(function(l) { l.classList.remove('selected'); });
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          var err = await res.json().catch(function() { return {}; });
+          throw new Error(err.error || '送信エラー');
+        }
+      } catch (err) {
+        msg.className = 'message error-msg';
+        msg.textContent = '❌ エラー: ' + err.message;
+        btn.disabled = false;
+        btn.textContent = 'アンケートを送信する 📩';
+      }
+      msg.style.display = 'block';
+    });
+  }
+
+  // ============================================================
+  // 初期化：APIから期間を取得してから画面を表示
+  // ============================================================
+  async function init() {
+    try {
+      var res = await fetch(BASE_URL + '/api/period?tenant=' + TENANT);
+      var period = await res.json();
+      var startDate = period.startDate || null;
+      var endDate   = period.endDate   || null;
+      var status = checkPeriod(startDate, endDate);
+      if (status === 'active') {
+        renderSurvey(endDate);
+      } else {
+        renderPeriodError(status, startDate, endDate);
+      }
+    } catch (e) {
+      // APIエラーの場合は期間制限なしでアンケートを表示
+      renderSurvey(null);
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

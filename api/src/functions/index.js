@@ -63,6 +63,93 @@ app.http('auth', {
 });
 
 // ----------------------------------------------------
+// 📅 【期間取得・保存】テナントごとの開始日・終了日
+// ----------------------------------------------------
+app.http('period', {
+    methods: ['GET', 'POST'],
+    authLevel: 'anonymous',
+    handler: async (request, context) => {
+        try {
+            const url = new URL(request.url);
+            const tenant = request.method === 'GET'
+                ? url.searchParams.get('tenant')
+                : (await request.json().then(b => b.tenant).catch(() => null));
+
+            if (!tenant) {
+                return {
+                    status: 400,
+                    headers: { 'Content-Type': 'application/json' },
+                    jsonBody: { error: 'tenant は必須です' }
+                };
+            }
+
+            const client = new CosmosClient(process.env.COSMOS_CONNECTION);
+            const container = client
+                .database(process.env.COSMOS_DATABASE)
+                .container(process.env.COSMOS_CONTAINER);
+
+            // GET: 期間を取得
+            if (request.method === 'GET') {
+                try {
+                    const { resource } = await container.item('period_' + tenant, tenant).read();
+                    return {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' },
+                        jsonBody: {
+                            startDate: resource ? resource.startDate : null,
+                            endDate:   resource ? resource.endDate   : null
+                        }
+                    };
+                } catch (e) {
+                    // ドキュメントが存在しない場合は期間なしを返す
+                    return {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' },
+                        jsonBody: { startDate: null, endDate: null }
+                    };
+                }
+            }
+
+            // POST: 期間を保存（認証必要）
+            if (request.method === 'POST') {
+                const token = request.headers.get('x-admin-token');
+                if (!token || !validTokens.has(token)) {
+                    return {
+                        status: 401,
+                        headers: { 'Content-Type': 'application/json' },
+                        jsonBody: { error: '認証が必要です' }
+                    };
+                }
+
+                const body = await request.json().catch(() => ({}));
+                const { startDate, endDate } = body;
+
+                await container.items.upsert({
+                    id: 'period_' + tenant,
+                    tenant,
+                    startDate: startDate || null,
+                    endDate:   endDate   || null,
+                    updatedAt: new Date().toISOString()
+                });
+
+                return {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                    jsonBody: { status: 'ok', startDate, endDate }
+                };
+            }
+
+        } catch (e) {
+            return {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' },
+                jsonBody: { error: e.message }
+            };
+        }
+    }
+});
+
+// ----------------------------------------------------
 // 📦 【データ操作】保存・取得・削除
 // ----------------------------------------------------
 app.http('log', {
