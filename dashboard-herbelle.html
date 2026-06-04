@@ -7,8 +7,6 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f5f7f5; color: #333; }
-
-    /* ログイン */
     .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
     .login-box { background: white; border-radius: 12px; padding: 40px 32px; width: 100%; max-width: 380px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); text-align: center; }
     .login-box h2 { color: #4A5D4E; margin-bottom: 24px; font-size: 22px; }
@@ -16,31 +14,21 @@
     .login-box button { width: 100%; padding: 14px; background: #4A5D4E; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
     .login-box button:hover { background: #3b4d3f; }
     .login-error { color: #c0392b; font-size: 14px; margin-top: 10px; display: none; }
-
-    /* トップバー */
     #dashContent { display: none; }
     .topbar { background: #4A5D4E; color: white; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
     .topbar h1 { font-size: 18px; white-space: nowrap; }
     .topbar-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .topbar select { padding: 8px 12px; border-radius: 6px; border: none; font-size: 14px; background: rgba(255,255,255,0.9); color: #333; min-width: 200px; }
     .topbar .logout { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; white-space: nowrap; }
-
     .main { padding: 24px; max-width: 1200px; margin: 0 auto; }
-
-    /* タブ */
     .tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 2px solid #ddd; }
     .tab-btn { padding: 10px 20px; border: none; background: none; font-size: 14px; font-weight: bold; color: #888; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }
     .tab-btn.active { color: #4A5D4E; border-bottom-color: #4A5D4E; }
     .tab-btn:hover { color: #4A5D4E; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
-
-    /* 共通カード */
     .panel { background: white; border-radius: 10px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; }
     .panel h2 { font-size: 16px; color: #4A5D4E; margin-bottom: 16px; font-weight: bold; }
-    .panel h3 { font-size: 14px; color: #555; margin-bottom: 12px; font-weight: bold; }
-
-    /* ボタン */
     .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s; }
     .btn-primary { background: #4A5D4E; color: white; }
     .btn-primary:hover { background: #3b4d3f; }
@@ -51,8 +39,6 @@
     .btn-secondary { background: #f5f5f5; color: #666; border: 1px solid #ddd; }
     .btn-secondary:hover { background: #eee; }
     .btn-sm { padding: 6px 12px; font-size: 12px; }
-
-    /* アンケート管理 */
     .survey-list { display: flex; flex-direction: column; gap: 12px; }
     .survey-item { border: 1.5px solid #ddd; border-radius: 8px; padding: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: #fafafa; }
     .survey-item:hover { border-color: #4A5D4E; background: #f0f4f0; }
@@ -60,19 +46,12 @@
     .survey-item-title { font-weight: bold; font-size: 15px; color: #333; }
     .survey-item-meta { font-size: 12px; color: #888; margin-top: 4px; }
     .survey-item-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-
-    /* アンケートビルダー */
     .builder-form { display: flex; flex-direction: column; gap: 16px; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-group label { font-size: 13px; font-weight: bold; color: #555; }
-    .form-group input, .form-group textarea, .form-group select {
-      padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px;
-      font-size: 15px; background: #fafafa; -webkit-appearance: none; appearance: none;
-    }
+    .form-group input, .form-group textarea, .form-group select { padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 15px; background: #fafafa; -webkit-appearance: none; appearance: none; }
     .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: #4A5D4E; outline: none; background: #fff; }
     .form-group textarea { height: 80px; resize: vertical; }
-
-    /* 質問リスト */
     .questions-list { display: flex; flex-direction: column; gap: 12px; }
     .question-item { border: 1.5px solid #ddd; border-radius: 8px; padding: 16px; background: #fafafa; }
     .question-item-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
@@ -84,8 +63,6 @@
     .option-tag { background: #f0f4f0; border: 1px solid #c8d8c8; padding: 4px 10px; border-radius: 20px; font-size: 13px; color: #4A5D4E; }
     .add-question-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 16px; border: 2px dashed #ddd; border-radius: 8px; background: #fafafa; }
     .add-question-bar select { flex: 1; min-width: 160px; padding: 8px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 14px; }
-
-    /* 期間設定 */
     .period-form { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
     .period-field { display: flex; flex-direction: column; gap: 6px; }
     .period-field label { font-size: 13px; color: #888; font-weight: bold; }
@@ -96,17 +73,12 @@
     .period-status.error { background: #fce8e6; color: #c62828; display: block; }
     .current-period { font-size: 13px; color: #666; margin-top: 8px; }
     .current-period span { font-weight: bold; color: #4A5D4E; }
-
-    /* サマリー */
     .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; margin-bottom: 20px; }
     .card { background: white; border-radius: 10px; padding: 16px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
     .card .num { font-size: 28px; font-weight: bold; color: #4A5D4E; }
     .card .label { font-size: 12px; color: #888; margin-top: 4px; }
     .card.hl { border-left: 4px solid #4A5D4E; }
-
-    /* テーブル */
     .toolbar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
-    .filter-select { padding: 8px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 14px; background: white; }
     .table-wrap { background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; }
     .table-scroll { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -118,8 +90,6 @@
     .btn-delete-sm:hover { border-color: #e74c3c; color: #e74c3c; }
     .empty { text-align: center; padding: 40px; color: #888; }
     .loading { text-align: center; padding: 30px; color: #888; }
-
-    /* モーダル */
     .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; }
     .modal-overlay.show { display: flex; }
     .modal { background: white; border-radius: 12px; padding: 28px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
@@ -131,11 +101,7 @@
     .option-row button { background: none; border: 1px solid #ddd; color: #999; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; }
     .option-row button:hover { border-color: #e74c3c; color: #e74c3c; }
     .add-option-btn { background: #f0f4f0; border: 1.5px dashed #4A5D4E; color: #4A5D4E; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; }
-
-    /* アンケートQRコード */
     .survey-url-box { background: #f0f4f0; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #4A5D4E; word-break: break-all; margin-top: 8px; }
-
-    /* メッセージ */
     .status-msg { padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-top: 10px; display: none; }
     .status-msg.success { background: #e8f5e9; color: #2e7d32; display: block; }
     .status-msg.error { background: #fce8e6; color: #c62828; display: block; }
@@ -143,7 +109,6 @@
 </head>
 <body>
 
-<!-- ログイン -->
 <div class="login-wrap" id="loginArea">
   <div class="login-box">
     <h2>🌿 Herbelle ダッシュボード</h2>
@@ -153,7 +118,6 @@
   </div>
 </div>
 
-<!-- ダッシュボード -->
 <div id="dashContent">
   <div class="topbar">
     <h1>🌿 Herbelle ダッシュボード</h1>
@@ -164,7 +128,6 @@
       <button class="logout" onclick="doLogout()">ログアウト</button>
     </div>
   </div>
-
   <div class="main">
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('responses')">📊 回答データ</button>
@@ -172,13 +135,9 @@
       <button class="tab-btn" onclick="switchTab('surveys')">📋 アンケート管理</button>
     </div>
 
-    <!-- タブ1: 回答データ -->
     <div id="tab-responses" class="tab-content active">
-      <div id="noSurveyMsg" class="panel" style="text-align:center;color:#888;">
-        上のドロップダウンからアンケートを選択してください
-      </div>
+      <div id="noSurveyMsg" class="panel" style="text-align:center;color:#888;">上のドロップダウンからアンケートを選択してください</div>
       <div id="responseContent" style="display:none">
-        <!-- 期間設定 -->
         <div class="panel">
           <h2>📅 受付期間の設定</h2>
           <div class="period-form">
@@ -190,21 +149,14 @@
           <div class="current-period" id="currentPeriod">読み込み中...</div>
           <div class="period-status" id="periodStatus"></div>
         </div>
-
-        <!-- サマリー -->
         <div class="summary" id="summaryArea"></div>
-
-        <!-- ツールバー -->
         <div class="toolbar">
           <button class="btn btn-primary" onclick="fetchResponses()">🔄 更新</button>
           <button class="btn btn-success" onclick="downloadCSV()">📥 CSVダウンロード</button>
-          <div id="filterArea"></div>
         </div>
-
-        <!-- テーブル -->
         <div class="table-wrap">
           <div class="table-scroll">
-            <table id="responseTable">
+            <table>
               <thead id="tableHead"></thead>
               <tbody id="tableBody"><tr><td class="loading">アンケートを選択してください</td></tr></tbody>
             </table>
@@ -213,30 +165,20 @@
       </div>
     </div>
 
-    <!-- タブ2: アンケート設定（ビルダー） -->
     <div id="tab-builder" class="tab-content">
-      <div id="noSurveyMsg2" class="panel" style="text-align:center;color:#888;">
-        上のドロップダウンからアンケートを選択してください
-      </div>
+      <div id="noSurveyMsg2" class="panel" style="text-align:center;color:#888;">上のドロップダウンからアンケートを選択してください</div>
       <div id="builderContent" style="display:none">
         <div class="panel">
           <h2>📝 基本情報</h2>
           <div class="builder-form">
-            <div class="form-group">
-              <label>アンケートタイトル</label>
-              <input type="text" id="surveyTitle" placeholder="例）無料体験アンケート">
-            </div>
-            <div class="form-group">
-              <label>説明文（任意）</label>
-              <textarea id="surveyDescription" placeholder="例）本日はお越しいただきありがとうございました。率直なご感想をお聞かせください（約2分）"></textarea>
-            </div>
+            <div class="form-group"><label>アンケートタイトル</label><input type="text" id="surveyTitle" placeholder="例）無料体験アンケート"></div>
+            <div class="form-group"><label>説明文（任意）</label><textarea id="surveyDescription" placeholder="例）本日はお越しいただきありがとうございました。率直なご感想をお聞かせください（約2分）"></textarea></div>
             <div style="display:flex;gap:10px;flex-wrap:wrap">
               <button class="btn btn-primary" onclick="saveSurveyInfo()">💾 基本情報を保存</button>
               <div class="status-msg" id="infoStatus"></div>
             </div>
           </div>
         </div>
-
         <div class="panel">
           <h2>❓ 質問一覧</h2>
           <div class="questions-list" id="questionsList"></div>
@@ -258,7 +200,6 @@
             <div class="status-msg" id="questionsStatus" style="display:inline-block;margin-left:10px"></div>
           </div>
         </div>
-
         <div class="panel">
           <h2>🔗 アンケートURL</h2>
           <p style="font-size:13px;color:#666;margin-bottom:8px">お客様に共有するURLです：</p>
@@ -268,28 +209,21 @@
       </div>
     </div>
 
-    <!-- タブ3: アンケート管理 -->
     <div id="tab-surveys" class="tab-content">
       <div class="panel">
         <h2>📋 アンケート一覧</h2>
-        <div style="margin-bottom:16px">
-          <button class="btn btn-primary" onclick="openCreateSurvey()">＋ 新規アンケート作成</button>
-        </div>
+        <div style="margin-bottom:16px"><button class="btn btn-primary" onclick="openCreateSurvey()">＋ 新規アンケート作成</button></div>
         <div class="survey-list" id="surveyList"><div class="loading">読み込み中...</div></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- 質問追加/編集モーダル -->
 <div class="modal-overlay" id="questionModal">
   <div class="modal">
     <h2 id="modalTitle">質問を追加</h2>
     <div class="builder-form">
-      <div class="form-group">
-        <label>質問文</label>
-        <input type="text" id="qLabel" placeholder="例）本日の満足度は？">
-      </div>
+      <div class="form-group"><label>質問文</label><input type="text" id="qLabel" placeholder="例）本日の満足度は？"></div>
       <div class="form-group">
         <label>回答形式</label>
         <select id="qType" onchange="onQTypeChange()">
@@ -300,16 +234,10 @@
           <option value="select">プルダウン</option>
         </select>
       </div>
-      <div class="form-group">
-        <label>プレースホルダー（任意）</label>
-        <input type="text" id="qPlaceholder" placeholder="例）山田 花子">
-      </div>
+      <div class="form-group"><label>プレースホルダー（任意）</label><input type="text" id="qPlaceholder" placeholder="例）山田 花子"></div>
       <div class="form-group" id="qRequiredGroup">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:normal">
-          <input type="checkbox" id="qRequired"
-            style="width:20px;height:20px;accent-color:#4A5D4E;flex-shrink:0;
-                   -webkit-appearance:checkbox;appearance:checkbox;
-                   border:2px solid #ddd;border-radius:4px;cursor:pointer">
+          <input type="checkbox" id="qRequired" style="width:20px;height:20px;accent-color:#4A5D4E;flex-shrink:0;-webkit-appearance:checkbox;appearance:checkbox;border:2px solid #ddd;border-radius:4px;cursor:pointer">
           必須項目にする
         </label>
       </div>
@@ -326,19 +254,12 @@
   </div>
 </div>
 
-<!-- アンケート新規作成モーダル -->
 <div class="modal-overlay" id="createSurveyModal">
   <div class="modal">
     <h2>新規アンケート作成</h2>
     <div class="builder-form">
-      <div class="form-group">
-        <label>アンケートタイトル</label>
-        <input type="text" id="newSurveyTitle" placeholder="例）無料体験アンケート">
-      </div>
-      <div class="form-group">
-        <label>説明文（任意）</label>
-        <textarea id="newSurveyDescription" placeholder="例）本日はお越しいただきありがとうございました。"></textarea>
-      </div>
+      <div class="form-group"><label>アンケートタイトル</label><input type="text" id="newSurveyTitle" placeholder="例）無料体験アンケート"></div>
+      <div class="form-group"><label>説明文（任意）</label><textarea id="newSurveyDescription" placeholder="例）本日はお越しいただきありがとうございました。"></textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('createSurveyModal')">キャンセル</button>
@@ -358,9 +279,6 @@
   var allResponses = [];
   var editingQuestionIndex = -1;
 
-  // ============================================================
-  // 認証
-  // ============================================================
   async function doLogin() {
     var pw = document.getElementById('passwordInput').value;
     var loginError = document.getElementById('loginError');
@@ -394,9 +312,6 @@
 
   function token() { return sessionStorage.getItem('adminToken'); }
 
-  // ============================================================
-  // タブ切り替え
-  // ============================================================
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
     document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
@@ -405,15 +320,10 @@
     if (name === 'surveys') renderSurveyList();
   }
 
-  // ============================================================
-  // アンケート一覧読み込み
-  // ============================================================
   async function loadSurveys() {
     try {
-      var res = await fetch(BASE_URL + '/api/surveys?tenant=' + TENANT, {
-        headers: { 'x-admin-token': token() }
-      });
-      if (res.status === 401) { doLogout(); return; }
+      var res = await fetch(BASE_URL + '/api/surveys?tenant=' + TENANT);
+      if (!res.ok) throw new Error('取得失敗');
       allSurveys = await res.json();
       var sel = document.getElementById('surveySelect');
       sel.innerHTML = '<option value="">アンケートを選択...</option>';
@@ -446,9 +356,6 @@
     fetchResponses();
   }
 
-  // ============================================================
-  // ビルダー
-  // ============================================================
   function loadBuilderData() {
     if (!currentSurvey) return;
     document.getElementById('surveyTitle').value = currentSurvey.title || '';
@@ -465,9 +372,7 @@
 
   function copyUrl() {
     var url = document.getElementById('surveyUrlBox').textContent;
-    navigator.clipboard.writeText(url).then(function() {
-      alert('URLをコピーしました！');
-    });
+    navigator.clipboard.writeText(url).then(function() { alert('URLをコピーしました！'); });
   }
 
   async function saveSurveyInfo() {
@@ -548,9 +453,6 @@
     } catch (e) { showStatus('questionsStatus', '❌ エラー', 'error'); }
   }
 
-  // ============================================================
-  // 質問モーダル
-  // ============================================================
   function openAddQuestion() {
     editingQuestionIndex = -1;
     document.getElementById('modalTitle').textContent = '質問を追加';
@@ -607,7 +509,6 @@
     }
     var q = { id: 'q_' + Date.now(), label: label, type: type, required: required, options: options };
     if (placeholder) q.placeholder = placeholder;
-
     if (!currentSurvey.questions) currentSurvey.questions = [];
     if (editingQuestionIndex >= 0) {
       q.id = currentSurvey.questions[editingQuestionIndex].id;
@@ -623,9 +524,6 @@
     document.getElementById(id).classList.remove('show');
   }
 
-  // ============================================================
-  // アンケート管理
-  // ============================================================
   function renderSurveyList() {
     var list = document.getElementById('surveyList');
     if (allSurveys.length === 0) {
@@ -672,7 +570,6 @@
       if (res.status === 401) { doLogout(); return; }
       if (res.ok) {
         var newSurvey = await res.json();
-        allSurveys.unshift(newSurvey);
         closeModal('createSurveyModal');
         await loadSurveys();
         document.getElementById('surveySelect').value = newSurvey.id;
@@ -703,9 +600,6 @@
     } catch (e) { alert('エラー: ' + e.message); }
   }
 
-  // ============================================================
-  // 期間管理
-  // ============================================================
   async function fetchPeriod() {
     if (!currentSurvey) return;
     try {
@@ -773,9 +667,6 @@
     await savePeriod();
   }
 
-  // ============================================================
-  // 回答データ
-  // ============================================================
   async function fetchResponses() {
     if (!currentSurvey) return;
     document.getElementById('tableBody').innerHTML = '<tr><td class="loading">読み込み中...</td></tr>';
@@ -796,18 +687,12 @@
   function renderResponseTable() {
     if (!currentSurvey) return;
     var questions = currentSurvey.questions || [];
-
-    // テーブルヘッダー生成
     var thead = document.getElementById('tableHead');
     thead.innerHTML = '<tr><th>日時</th>' +
       questions.map(function(q) { return '<th>' + q.label + '</th>'; }).join('') +
       '<th>操作</th></tr>';
-
-    // サマリー
     var summaryArea = document.getElementById('summaryArea');
     summaryArea.innerHTML = '<div class="card hl"><div class="num">' + allResponses.length + '</div><div class="label">総回答数</div></div>';
-
-    // テーブルボディ
     var tbody = document.getElementById('tableBody');
     if (allResponses.length === 0) {
       tbody.innerHTML = '<tr><td colspan="' + (questions.length + 2) + '" class="empty">回答データがありません</td></tr>';
@@ -859,9 +744,6 @@
     a.click();
   }
 
-  // ============================================================
-  // ユーティリティ
-  // ============================================================
   function showStatus(id, msg, type) {
     var el = document.getElementById(id);
     el.className = 'status-msg ' + type;

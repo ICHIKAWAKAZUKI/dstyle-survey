@@ -9,58 +9,51 @@
         .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         h1 { font-size: 26px; color: #2c3e50; margin-top: 0; margin-bottom: 10px; border-bottom: 2px solid #2c3e50; padding-bottom: 15px; }
         .subtitle { color: #7f8c8d; font-size: 15px; margin-bottom: 30px; }
-        
         .project-section { margin-bottom: 35px; background: #fafbfc; border: 1px solid #e1e8ed; border-radius: 8px; padding: 24px; }
         .project-title { font-size: 18px; font-weight: bold; color: #4A5D4E; margin-top: 0; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
-        
         .link-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
         @media(min-width: 600px) { .link-grid { grid-template-columns: 1fr 1fr; } }
-        
         .btn-link { display: flex; align-items: center; justify-content: center; padding: 14px; background: #fff; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; font-weight: bold; color: #333; text-decoration: none; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
         .btn-link:hover { background: #2c3e50; color: white; border-color: #2c3e50; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .btn-link.admin:hover { background: #d35400; border-color: #d35400; }
-        
+        .btn-link.dashboard:hover { background: #4A5D4E; border-color: #4A5D4E; }
+        .btn-link.dashboard-diana:hover { background: #7B4F6E; border-color: #7B4F6E; }
         .system-status { margin-top: 40px; font-size: 13px; color: #95a5a6; border-top: 1px dashed #ccc; padding-top: 15px; display: flex; justify-content: space-between; }
     </style>
 </head>
 <body>
-
 <div class="container">
     <h1>DStyle DX フォーム管理ポータル</h1>
     <div class="subtitle">構築済みの汎用API基盤を活用した、各種アンケート・フォームのリンク集です。</div>
 
-    <!-- 🌿 プロジェクト1: Herbelle千歳船橋 -->
+    <!-- 🌿 Herbelle -->
     <div class="project-section">
-        <div class="project-title">🌿 よもぎ蒸しサロン Herbelle（千歳船橋）(サンプル)</div>
+        <div class="project-title">🌿 よもぎ蒸しサロン Herbelle（千歳船橋）</div>
         <div class="link-grid">
-            <a href="survey-herbelle.html" class="btn-link" target="_blank">📋 無料体験アンケート (お客様用)(サンプル)</a>
-            <a href="admin-herbelle.html" class="btn-link admin" target="_blank">🔐 回答確認画面 (スタッフ用)(サンプル)</a>
+            <a href="dashboard-herbelle.html" class="btn-link dashboard" target="_blank">📊 Herbelle ダッシュボード</a>
         </div>
     </div>
 
-    <!-- 👗 プロジェクト2: 補正下着試着 -->
+    <!-- 👗 Diana -->
     <div class="project-section">
-        <div class="project-title" style="color: #7B4F6E;">👗 補正下着 試着体験アンケート(サンプル)</div>
+        <div class="project-title" style="color: #7B4F6E;">👗 Diana（補正下着 試着体験）</div>
         <div class="link-grid">
-            <a href="survey-fitting.html" class="btn-link" target="_blank">📋 試着体験アンケート (お客様用)(サンプル)</a>
-            <a href="admin-fitting.html" class="btn-link admin" target="_blank">🔐 回答確認画面 (スタッフ用)(サンプル)</a>
+            <a href="dashboard-diana.html" class="btn-link dashboard-diana" target="_blank">📊 Diana ダッシュボード</a>
         </div>
     </div>
 
-    <!-- 🛠️ 今後、新しいプロジェクトが増えたらココをコピーして増やすだけ！ -->
-    <!-- 
+    <!--
     <div class="project-section">
         <div class="project-title">🏢 新しいプロジェクト名</div>
         <div class="link-grid">
-            <a href="survey-new.html" class="btn-link" target="_blank">📋 入力フォーム (お客様用)</a>
-            <a href="admin-new.html" class="btn-link admin" target="_blank">🔐 管理画面 (スタッフ用)</a>
+            <a href="dashboard-new.html" class="btn-link dashboard" target="_blank">📊 ダッシュボード</a>
         </div>
     </div>
     -->
 
     <div class="system-status">
+        <span>DStyle DX フォーム管理ポータル</span>
+        <span>ディライトテクノロジーズ事業部</span>
     </div>
 </div>
-
 </body>
 </html>
