@@ -38,7 +38,7 @@ app.http('auth', {
             if (password === correctPW) {
                 const token = crypto.randomBytes(16).toString('hex');
                 validTokens.add(token);
-                setTimeout(() => validTokens.delete(token), 8 * 60 * 60 * 1000);
+                setTimeout(() => validTokens.delete(token), 24 * 60 * 60 * 1000);
                 return {
                     status: 200,
                     headers: { 'Content-Type': 'application/json' },
