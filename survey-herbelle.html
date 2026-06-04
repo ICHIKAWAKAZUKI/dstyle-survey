@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Herbelle 無料体験アンケート(サンプル)</title>
+  <title>Herbelle 無料体験アンケート</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f5f7f5; color: #333; padding: 20px 16px 40px; }
@@ -40,10 +40,23 @@
     }
     .submit-btn:hover { background: #3b4d3f; }
     .submit-btn:disabled { background: #999; cursor: not-allowed; }
-    .message { margin-top: 20px; padding: 16px; border-radius: 8px; font-weight: bold; text-align: center; display: none; font-size: 16px; }
-    .success { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
-    .error-msg { background: #fce8e6; color: #c5221f; border: 1px solid #f5c6c2; }
+    .error-msg { margin-top: 20px; padding: 16px; border-radius: 8px; font-weight: bold; text-align: center; display: none; font-size: 16px; background: #fce8e6; color: #c5221f; border: 1px solid #f5c6c2; }
     .divider { border: none; border-top: 1px solid #eee; margin: 8px 0 28px; }
+
+    /* 送信完了画面 */
+    .thanks-screen {
+      display: none;
+      text-align: center;
+      padding: 48px 24px;
+      background: white;
+      border-radius: 0 0 12px 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+    .thanks-icon { font-size: 64px; margin-bottom: 20px; }
+    .thanks-title { font-size: 24px; font-weight: bold; color: #4A5D4E; margin-bottom: 16px; }
+    .thanks-message { font-size: 16px; color: #555; line-height: 1.8; margin-bottom: 24px; }
+    .thanks-sub { font-size: 14px; color: #888; line-height: 1.7; padding: 16px; background: #f5f7f5; border-radius: 8px; }
+
     @media (min-width: 480px) {
       .radio-group.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     }
@@ -55,7 +68,9 @@
     <h1>🌿 無料体験アンケート</h1>
     <p>本日はHerbelleにお越しいただきありがとうございました。<br>率直なご感想をお聞かせください（約2分）</p>
   </div>
-  <div class="body">
+
+  <!-- アンケートフォーム -->
+  <div class="body" id="formArea">
     <form id="surveyForm">
       <div class="section">
         <div class="section-label"><span class="num">1</span>お名前<span class="required">※必須</span></div>
@@ -122,13 +137,35 @@
       </div>
       <button type="submit" class="submit-btn" id="submitBtn">アンケートを送信する 📩</button>
     </form>
-    <div id="statusMessage" class="message"></div>
+    <div id="errorMsg" class="error-msg"></div>
+  </div>
+
+  <!-- 送信完了画面 -->
+  <div class="thanks-screen" id="thanksScreen">
+    <div class="thanks-icon">🌿</div>
+    <div class="thanks-title">ありがとうございました！</div>
+    <div class="thanks-message">
+      アンケートへのご協力、誠にありがとうございます。<br>
+      皆様のご意見を今後のサービス向上に活かしてまいります。
+    </div>
+    <div class="thanks-sub">
+      本日はHerbelleにお越しいただき、ありがとうございました。<br>
+      またのご来店を心よりお待ちしております。🌿
+    </div>
   </div>
 </div>
+
 <script>
   const BASE_URL = location.hostname === 'localhost'
     ? 'http://localhost:7071'
     : 'https://func-dstyle-survey-gab2dwg3gdcqecgz.japaneast-01.azurewebsites.net';
+
+  // Enterキーで送信されないように制御
+  document.getElementById('surveyForm').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+    }
+  });
 
   document.querySelectorAll('.radio-group').forEach(group => {
     group.querySelectorAll('.radio-label').forEach(label => {
@@ -142,10 +179,10 @@
   document.getElementById('surveyForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('submitBtn');
-    const msg = document.getElementById('statusMessage');
+    const errorMsg = document.getElementById('errorMsg');
     btn.disabled = true;
     btn.textContent = '送信中...';
-    msg.style.display = 'none';
+    errorMsg.style.display = 'none';
 
     const get = (name) => {
       const el = document.querySelector(`input[name="${name}"]:checked`);
@@ -174,22 +211,20 @@
         body: JSON.stringify(payload)
       });
       if (res.ok) {
-        msg.className = 'message success';
-        msg.innerHTML = '✅ アンケートが送信されました。<br>ご協力ありがとうございました！';
-        document.getElementById('surveyForm').reset();
-        document.querySelectorAll('.radio-label').forEach(l => l.classList.remove('selected'));
+        // フォームを隠してありがとう画面を表示
+        document.getElementById('formArea').style.display = 'none';
+        document.getElementById('thanksScreen').style.display = 'block';
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || '送信エラー');
       }
     } catch (err) {
-      msg.className = 'message error-msg';
-      msg.textContent = '❌ エラー: ' + err.message;
+      errorMsg.textContent = '❌ エラー: ' + err.message;
+      errorMsg.style.display = 'block';
       btn.disabled = false;
       btn.textContent = 'アンケートを送信する 📩';
     }
-    msg.style.display = 'block';
   });
 </script>
 </body>

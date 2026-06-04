@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Herbelle 管理画面(サンプル)</title>
+  <title>Herbelle 管理画面</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f5f7f5; color: #333; }
@@ -14,11 +14,39 @@
     .login-box button { width: 100%; padding: 14px; background: #4A5D4E; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
     .login-box button:hover { background: #3b4d3f; }
     .login-error { color: #c0392b; font-size: 14px; margin-top: 10px; display: none; }
+
     #adminContent { display: none; }
     .topbar { background: #4A5D4E; color: white; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
     .topbar h1 { font-size: 18px; }
     .topbar .logout { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+
     .main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+
+    /* 期間設定パネル */
+    .period-panel {
+      background: white; border-radius: 10px; padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px;
+      border-left: 4px solid #4A5D4E;
+    }
+    .period-panel h2 { font-size: 16px; color: #4A5D4E; margin-bottom: 16px; }
+    .period-form { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+    .period-field { display: flex; flex-direction: column; gap: 6px; }
+    .period-field label { font-size: 13px; color: #888; font-weight: bold; }
+    .period-field input[type="date"] {
+      padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px;
+      font-size: 15px; background: #fafafa; cursor: pointer;
+    }
+    .period-field input[type="date"]:focus { border-color: #4A5D4E; outline: none; }
+    .btn-period-save { padding: 10px 24px; background: #4A5D4E; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; }
+    .btn-period-save:hover { background: #3b4d3f; }
+    .btn-period-clear { padding: 10px 16px; background: #f5f5f5; color: #888; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; cursor: pointer; }
+    .btn-period-clear:hover { background: #eee; }
+    .period-status { font-size: 13px; margin-top: 10px; padding: 8px 12px; border-radius: 6px; display: none; }
+    .period-status.success { background: #e8f5e9; color: #2e7d32; display: block; }
+    .period-status.error { background: #fce8e6; color: #c62828; display: block; }
+    .current-period { font-size: 13px; color: #666; margin-top: 8px; }
+    .current-period span { font-weight: bold; color: #4A5D4E; }
+
     .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 28px; }
     .card { background: white; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
     .card .num { font-size: 32px; font-weight: bold; color: #4A5D4E; }
@@ -27,6 +55,7 @@
     .card.alert { border-left: 4px solid #e74c3c; }
     .card .num.green { color: #27ae60; }
     .card .num.red { color: #e74c3c; }
+
     .toolbar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
     .toolbar button { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; }
     .btn-refresh { background: #4A5D4E; color: white; }
@@ -34,6 +63,7 @@
     .btn-refresh:hover { background: #3b4d3f; }
     .btn-csv:hover { background: #219a52; }
     .filter-select { padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 14px; background: white; }
+
     .table-wrap { background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; }
     .table-scroll { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -41,11 +71,13 @@
     td { padding: 12px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: #f9fbf9; }
+
     .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; white-space: nowrap; }
     .badge-green { background: #e8f5e9; color: #2e7d32; }
     .badge-yellow { background: #fff8e1; color: #e65100; }
     .badge-gray { background: #f5f5f5; color: #777; }
     .badge-red { background: #fce8e6; color: #c62828; }
+
     .btn-delete { background: none; border: 1px solid #ddd; color: #999; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }
     .btn-delete:hover { border-color: #e74c3c; color: #e74c3c; }
     .loading { text-align: center; padding: 40px; color: #888; font-size: 16px; }
@@ -53,6 +85,8 @@
   </style>
 </head>
 <body>
+
+<!-- ログイン画面 -->
 <div class="login-wrap" id="loginArea">
   <div class="login-box">
     <h2>🌿 Herbelle 管理画面</h2>
@@ -61,18 +95,42 @@
     <div class="login-error" id="loginError">⚠️ パスワードが違います</div>
   </div>
 </div>
+
+<!-- 管理画面 -->
 <div id="adminContent">
   <div class="topbar">
     <h1>🌿 Herbelle アンケート管理</h1>
     <button class="logout" onclick="logout()">ログアウト</button>
   </div>
   <div class="main">
+
+    <!-- 期間設定パネル -->
+    <div class="period-panel">
+      <h2>📅 アンケート受付期間の設定</h2>
+      <div class="period-form">
+        <div class="period-field">
+          <label>開始日</label>
+          <input type="date" id="startDateInput">
+        </div>
+        <div class="period-field">
+          <label>終了日</label>
+          <input type="date" id="endDateInput">
+        </div>
+        <button class="btn-period-save" onclick="savePeriod()">💾 保存</button>
+        <button class="btn-period-clear" onclick="clearPeriod()">🗑️ 期間を削除</button>
+      </div>
+      <div class="current-period" id="currentPeriod">現在の設定：読み込み中...</div>
+      <div class="period-status" id="periodStatus"></div>
+    </div>
+
+    <!-- サマリー -->
     <div class="summary">
       <div class="card highlight"><div class="num" id="totalCount">—</div><div class="label">総回答数</div></div>
       <div class="card highlight"><div class="num green" id="continueCount">—</div><div class="label">継続希望</div></div>
       <div class="card alert"><div class="num red" id="considerCount">—</div><div class="label">検討中</div></div>
       <div class="card"><div class="num" id="referralCount">—</div><div class="label">紹介できる</div></div>
     </div>
+
     <div class="toolbar">
       <button class="btn-refresh" onclick="fetchData()">🔄 更新</button>
       <button class="btn-csv" onclick="downloadCSV()">📥 CSVダウンロード</button>
@@ -91,6 +149,7 @@
         <option value="やや不満">やや不満</option>
       </select>
     </div>
+
     <div class="table-wrap">
       <div class="table-scroll">
         <table>
@@ -109,6 +168,7 @@
     </div>
   </div>
 </div>
+
 <script>
   const BASE_URL = location.hostname === 'localhost'
     ? 'http://localhost:7071'
@@ -119,6 +179,13 @@
   const tenant = params.get('tenant') || 'herbelle-chitosefunabashi';
   const type = params.get('type') || 'free_trial_survey';
 
+  function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    return parts[0] + '年' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
+  }
+
+  // 認証
   async function checkPassword() {
     const pw = document.getElementById('passwordInput').value;
     const loginError = document.getElementById('loginError');
@@ -134,6 +201,7 @@
         sessionStorage.setItem('adminToken', token);
         document.getElementById('loginArea').style.display = 'none';
         document.getElementById('adminContent').style.display = 'block';
+        fetchPeriod();
         fetchData();
       } else {
         loginError.style.display = 'block';
@@ -154,6 +222,74 @@
     document.getElementById('passwordInput').value = '';
   }
 
+  // 期間取得
+  async function fetchPeriod() {
+    try {
+      const res = await fetch(`${BASE_URL}/api/period?tenant=${tenant}`);
+      const period = await res.json();
+      document.getElementById('startDateInput').value = period.startDate || '';
+      document.getElementById('endDateInput').value   = period.endDate   || '';
+      updateCurrentPeriodDisplay(period.startDate, period.endDate);
+    } catch (e) {
+      document.getElementById('currentPeriod').textContent = '現在の設定：取得できませんでした';
+    }
+  }
+
+  function updateCurrentPeriodDisplay(startDate, endDate) {
+    const el = document.getElementById('currentPeriod');
+    if (!startDate && !endDate) {
+      el.innerHTML = '現在の設定：<span>期間制限なし（常時受付中）</span>';
+    } else if (startDate && endDate) {
+      el.innerHTML = '現在の設定：<span>' + formatDate(startDate) + ' 〜 ' + formatDate(endDate) + '</span>';
+    } else if (startDate) {
+      el.innerHTML = '現在の設定：<span>' + formatDate(startDate) + ' 以降</span>';
+    } else {
+      el.innerHTML = '現在の設定：<span>' + formatDate(endDate) + ' まで</span>';
+    }
+  }
+
+  // 期間保存
+  async function savePeriod() {
+    const startDate = document.getElementById('startDateInput').value || null;
+    const endDate   = document.getElementById('endDateInput').value   || null;
+    const status = document.getElementById('periodStatus');
+
+    if (startDate && endDate && startDate > endDate) {
+      status.className = 'period-status error';
+      status.textContent = '⚠️ 開始日は終了日より前に設定してください。';
+      return;
+    }
+
+    try {
+      const token = sessionStorage.getItem('adminToken');
+      const res = await fetch(`${BASE_URL}/api/period`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+        body: JSON.stringify({ tenant, startDate, endDate })
+      });
+      if (res.ok) {
+        status.className = 'period-status success';
+        status.textContent = '✅ 受付期間を保存しました。';
+        updateCurrentPeriodDisplay(startDate, endDate);
+      } else {
+        throw new Error('保存失敗');
+      }
+    } catch (e) {
+      status.className = 'period-status error';
+      status.textContent = '❌ 保存に失敗しました。';
+    }
+    setTimeout(() => { status.style.display = 'none'; }, 3000);
+  }
+
+  // 期間削除
+  async function clearPeriod() {
+    if (!confirm('受付期間の設定を削除しますか？（期間制限なしになります）')) return;
+    document.getElementById('startDateInput').value = '';
+    document.getElementById('endDateInput').value = '';
+    await savePeriod();
+  }
+
+  // データ取得
   async function fetchData() {
     document.getElementById('tableBody').innerHTML = '<tr><td colspan="10" class="loading">読み込み中...</td></tr>';
     try {
@@ -201,7 +337,7 @@
         <td style="font-size:13px;white-space:nowrap">${d.frequency || '—'}</td>
         <td style="font-size:13px">${d.referral || '—'}</td>
         <td style="font-size:13px;max-width:200px">${d.feedback || ''}</td>
-        <td><button class="btn-delete" onclick="deleteItem(&quot;${d.id}&quot;)">削除</button></td>
+        <td><button class="btn-delete" onclick="deleteItem('${d.id}')">削除</button></td>
       </tr>`;
     }).join('');
   }

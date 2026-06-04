@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>補正下着 試着体験アンケート(サンプル)</title>
+  <title>補正下着 試着体験アンケート</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f9f4f7; color: #333; padding: 20px 16px 40px; }
@@ -48,9 +48,7 @@
     .submit-btn:hover { background: #6a4060; }
     .submit-btn:disabled { background: #999; cursor: not-allowed; }
 
-    .message { margin-top: 20px; padding: 16px; border-radius: 8px; font-weight: bold; text-align: center; display: none; font-size: 16px; }
-    .success { background: #f9f0f5; color: #7B4F6E; border: 1px solid #d4a8c7; }
-    .error-msg { background: #fce8e6; color: #c5221f; border: 1px solid #f5c6c2; }
+    .error-msg { margin-top: 20px; padding: 16px; border-radius: 8px; font-weight: bold; text-align: center; display: none; font-size: 16px; background: #fce8e6; color: #c5221f; border: 1px solid #f5c6c2; }
 
     .period-error {
       text-align: center; padding: 60px 24px;
@@ -63,6 +61,20 @@
     .period-error .period-info { margin-top: 20px; padding: 16px; background: #f9f4f7; border-radius: 8px; font-size: 14px; color: #666; }
 
     .loading-screen { text-align: center; padding: 60px 24px; color: #888; font-size: 16px; }
+
+    /* 送信完了画面 */
+    .thanks-screen {
+      display: none;
+      text-align: center;
+      padding: 48px 24px;
+      background: white;
+      border-radius: 0 0 12px 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+    .thanks-icon { font-size: 64px; margin-bottom: 20px; }
+    .thanks-title { font-size: 24px; font-weight: bold; color: #7B4F6E; margin-bottom: 16px; }
+    .thanks-message { font-size: 16px; color: #555; line-height: 1.8; margin-bottom: 24px; }
+    .thanks-sub { font-size: 14px; color: #888; line-height: 1.7; padding: 16px; background: #f9f4f7; border-radius: 8px; }
 
     .divider { border: none; border-top: 1px solid #eee; margin: 8px 0 28px; }
 
@@ -83,14 +95,14 @@
     <p>本日は試着体験にお越しいただきありがとうございました。<br>率直なご感想をお聞かせください（約2分）</p>
     <p class="period-badge" id="periodBadge"></p>
   </div>
-  <div class="body">
+
+  <!-- アンケートフォーム -->
+  <div class="body" id="formArea">
     <form id="surveyForm">
-      <!-- Q1 お名前 -->
       <div class="section">
         <div class="section-label"><span class="num">1</span>お名前<span class="required">※必須</span></div>
         <input type="text" id="customerName" required placeholder="山田 花子">
       </div>
-      <!-- Q2 試着アイテム -->
       <div class="section">
         <div class="section-label"><span class="num">2</span>本日試着されたアイテム</div>
         <select id="item">
@@ -102,7 +114,6 @@
         </select>
       </div>
       <hr class="divider">
-      <!-- Q3 着用感の満足度 -->
       <div class="section">
         <div class="section-label"><span class="num">3</span>着用感の満足度は？</div>
         <div class="radio-group two-col" id="satisfactionGroup">
@@ -112,7 +123,6 @@
           <label class="radio-label"><input type="radio" name="satisfaction" value="やや不満"> 😕 やや不満</label>
         </div>
       </div>
-      <!-- Q4 体型の変化 -->
       <div class="section">
         <div class="section-label"><span class="num">4</span>着用後、体型の変化を感じましたか？</div>
         <div class="radio-group" id="bodyChangeGroup">
@@ -122,7 +132,6 @@
           <label class="radio-label"><input type="radio" name="bodyChange" value="わからない"> ❓ まだわからない</label>
         </div>
       </div>
-      <!-- Q5 継続意向 -->
       <div class="section">
         <div class="section-label"><span class="num">5</span>継続して着用したいと思いますか？</div>
         <div class="radio-group" id="continuationGroup">
@@ -132,7 +141,6 @@
           <label class="radio-label"><input type="radio" name="continuation" value="今は難しい"> ⏸ 今はまだ難しい</label>
         </div>
       </div>
-      <!-- Q6 購入意向 -->
       <div class="section">
         <div class="section-label"><span class="num">6</span>購入を検討していますか？</div>
         <div class="radio-group" id="purchaseGroup">
@@ -142,7 +150,6 @@
           <label class="radio-label"><input type="radio" name="purchase" value="今は考えていない"> ✋ 今は考えていない</label>
         </div>
       </div>
-      <!-- Q7 紹介 -->
       <div class="section">
         <div class="section-label"><span class="num">7</span>ご紹介できそうなお友達・ご家族はいますか？</div>
         <div class="radio-group two-col" id="referralGroup">
@@ -152,27 +159,33 @@
         </div>
       </div>
       <hr class="divider">
-      <!-- Q8 自由記入 -->
       <div class="section">
         <div class="section-label"><span class="num">8</span>ご意見・スタッフへのメッセージ（自由記入）</div>
         <textarea id="feedback" placeholder="着用感・デザイン・スタッフへのメッセージなど、自由にご記入ください。"></textarea>
       </div>
       <button type="submit" class="submit-btn" id="submitBtn">アンケートを送信する 📩</button>
     </form>
-    <div id="statusMessage" class="message"></div>
+    <div id="errorMsg" class="error-msg"></div>
+  </div>
+
+  <!-- 送信完了画面 -->
+  <div class="thanks-screen" id="thanksScreen">
+    <div class="thanks-icon">👗</div>
+    <div class="thanks-title">ありがとうございました！</div>
+    <div class="thanks-message">
+      アンケートへのご協力、誠にありがとうございます。<br>
+      皆様のご意見を今後のサービス向上に活かしてまいります。
+    </div>
+    <div class="thanks-sub">
+      本日は試着体験にお越しいただき、ありがとうございました。<br>
+      またのご来店を心よりお待ちしております。👗
+    </div>
   </div>
 </div>
 
 <script>
-  // ============================================================
-  // ⚙️ 設定エリア（tenant・typeのみ変更してください）
-  // 期間は Azure Functions の環境変数で管理します：
-  //   SURVEY_START_DIANA_FITTING=2026-07-01
-  //   SURVEY_END_DIANA_FITTING=2026-09-30
-  // ============================================================
   var TENANT = new URLSearchParams(location.search).get('tenant') || 'diana-fitting';
   var TYPE   = new URLSearchParams(location.search).get('type')   || 'fitting_survey';
-  // ============================================================
 
   var BASE_URL = location.hostname === 'localhost'
     ? 'http://localhost:7071'
@@ -223,13 +236,18 @@
       app.appendChild(template.firstChild);
     }
 
-    // 受付期間バッジを設定
     var badge = document.getElementById('periodBadge');
     if (endDate && badge) {
       badge.textContent = '📅 受付期間：' + formatDate(endDate) + ' まで';
     }
 
-    // ラジオ選択時ハイライト
+    // Enterキーで送信されないように制御
+    document.getElementById('surveyForm').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+      }
+    });
+
     document.querySelectorAll('.radio-group').forEach(function(group) {
       group.querySelectorAll('.radio-label').forEach(function(label) {
         label.addEventListener('click', function() {
@@ -239,14 +257,13 @@
       });
     });
 
-    // 送信処理
     document.getElementById('surveyForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       var btn = document.getElementById('submitBtn');
-      var msg = document.getElementById('statusMessage');
+      var errorMsg = document.getElementById('errorMsg');
       btn.disabled = true;
       btn.textContent = '送信中...';
-      msg.style.display = 'none';
+      errorMsg.style.display = 'none';
 
       function getRadio(name) {
         var el = document.querySelector('input[name="' + name + '"]:checked');
@@ -275,28 +292,23 @@
           body: JSON.stringify(payload)
         });
         if (res.ok) {
-          msg.className = 'message success';
-          msg.innerHTML = '✅ アンケートが送信されました。<br>ご協力ありがとうございました！';
-          document.getElementById('surveyForm').reset();
-          document.querySelectorAll('.radio-label').forEach(function(l) { l.classList.remove('selected'); });
+          // フォームを隠してありがとう画面を表示
+          document.getElementById('formArea').style.display = 'none';
+          document.getElementById('thanksScreen').style.display = 'block';
           window.scrollTo({ top: 0, behavior: 'smooth' });
         } else {
           var err = await res.json().catch(function() { return {}; });
           throw new Error(err.error || '送信エラー');
         }
       } catch (err) {
-        msg.className = 'message error-msg';
-        msg.textContent = '❌ エラー: ' + err.message;
+        errorMsg.textContent = '❌ エラー: ' + err.message;
+        errorMsg.style.display = 'block';
         btn.disabled = false;
         btn.textContent = 'アンケートを送信する 📩';
       }
-      msg.style.display = 'block';
     });
   }
 
-  // ============================================================
-  // 初期化：APIから期間を取得してから画面を表示
-  // ============================================================
   async function init() {
     try {
       var res = await fetch(BASE_URL + '/api/period?tenant=' + TENANT);
@@ -310,7 +322,6 @@
         renderPeriodError(status, startDate, endDate);
       }
     } catch (e) {
-      // APIエラーの場合は期間制限なしでアンケートを表示
       renderSurvey(null);
     }
   }
