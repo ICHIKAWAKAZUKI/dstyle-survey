@@ -12,9 +12,10 @@
 4. [新規アンケートを追加する手順](#4-新規アンケートを追加する手順)
 5. [GitHubの基本操作](#5-githubの基本操作)
 6. [環境変数の追加・管理](#6-環境変数の追加管理)
-7. [トラブルシューティング](#7-トラブルシューティング)
-8. [セキュリティ注意事項](#8-セキュリティ注意事項)
-9. [重要URL・リソース一覧](#9-重要urlリソース一覧)
+7. [ローカル開発環境](#7-ローカル開発環境)
+8. [トラブルシューティング](#8-トラブルシューティング)
+9. [セキュリティ注意事項](#9-セキュリティ注意事項)
+10. [重要URL・リソース一覧](#10-重要urlリソース一覧)
 
 ---
 
@@ -263,7 +264,7 @@ az account set --subscription "株式会社Dstyleホールディングス"
 az functionapp config appsettings set \
   --name func-dstyle-survey \
   --resource-group rg-dstyle-survey \
-  --settings ADMIN_PASSWORD_SHINJUKU=設定したいパスワード
+  --settings ADMIN_PASSWORD_{テナント名大文字}=設定したいパスワード
 ```
 
 **環境変数名のルール：**
@@ -354,6 +355,7 @@ dstyle-survey/
 ├── api/
 │   ├── src/functions/
 │   │   └── index.js                # APIの本体（認証・データ保存・期間管理）
+│   ├── local-server.js             # ローカル確認用サーバー（本番には不使用）
 │   ├── host.json                   # Functionsの設定
 │   └── package.json                # Node.jsパッケージ定義
 ├── admin-herbelle.html             # Herbelle管理画面
@@ -415,7 +417,68 @@ https://github.com/dstylegroup-dx/dstyle-survey/settings/secrets/actions
 
 ---
 
-## 7. トラブルシューティング
+## 7. ローカル開発環境
+
+本番にデプロイする前にローカルで動作確認できます。
+
+### 構成
+
+```
+api/
+├── .env                  # 環境変数（gitignore済み・機密情報を記載）
+├── local-server.js       # Expressベースのローカルサーバー
+├── local.settings.json   # Azure Functions設定（gitignore済み）
+└── src/functions/
+    └── index.js          # APIの本体
+```
+
+### .env ファイルの設定
+
+`api/.env` に以下を記載してください（値は実際のものに変更）：
+
+```
+COSMOS_CONNECTION=AccountEndpoint=https://{CosmosDBのエンドポイント};AccountKey={アカウントキー};
+COSMOS_DATABASE=dstyle-survey
+COSMOS_CONTAINER=logs
+ADMIN_PASSWORD_HERBELLE_CHITOSEFUNABASHI={パスワード}
+ADMIN_PASSWORD_DIANA_FITTING={パスワード}
+```
+
+> ⚠️ `.env` ファイルは `.gitignore` に登録済みのため、GitHubには公開されません。
+
+### 起動方法
+
+```bash
+cd api
+node local-server.js
+```
+
+### 対応APIエンドポイント（local-server.js）
+
+| エンドポイント | メソッド | 認証 | 説明 |
+|-------------|---------|------|------|
+| `/api/auth` | POST | 不要 | 認証・トークン発行 |
+| `/api/period` | GET | 不要 | 受付期間取得 |
+| `/api/period` | POST | 必要 | 受付期間保存 |
+| `/api/log` | POST | 不要 | アンケートデータ保存 |
+| `/api/log` | GET | 必要 | アンケートデータ取得 |
+| `/api/log` | DELETE | 必要 | アンケートデータ削除 |
+
+### ローカル確認URL
+
+| 画面 | URL |
+|------|-----|
+| フォーム管理ポータル | http://localhost:7071/index.html |
+| Herbelleアンケート | http://localhost:7071/survey-herbelle.html |
+| Herbelle管理画面 | http://localhost:7071/admin-herbelle.html |
+| 補正下着アンケート | http://localhost:7071/survey-fitting.html |
+| 補正下着管理画面 | http://localhost:7071/admin-fitting.html |
+
+> 💡 `func start` は社内ネットワークのSSL証明書の関係で動作しないため、`local-server.js`（Express）を使用します。
+
+---
+
+## 8. トラブルシューティング
 
 | 症状 | 原因 | 対処法 |
 |------|------|--------|
@@ -428,6 +491,8 @@ https://github.com/dstylegroup-dx/dstyle-survey/settings/secrets/actions
 | `git push` でエラー | リモートと競合している | `git pull` してから再push |
 | Permission denied | アクセス権がない | 管理者にCollaborator招待を依頼 |
 | アンケートが「受付期間外」と表示される | 期間設定が古い | 管理画面から期間を更新 |
+| 期間設定が保存できない | トークン切れ・認証エラー | 一度ログアウトして再ログイン |
+| ローカルで期間設定が動かない | local-server.jsが古い | local-server.jsを最新版に更新 |
 | Cloud Shellでリソースが見つからない | サブスクリプションが違う | `az account set --subscription "株式会社Dstyleホールディングス"` を実行 |
 
 ### CORSエラーの対処
@@ -454,7 +519,7 @@ https://form.dstylegroup.jp/survey-herbelle.html?tenant=herbelle-chitosefunabash
 
 ---
 
-## 8. セキュリティ注意事項
+## 9. セキュリティ注意事項
 
 > ⚠️ 以下の情報は絶対に外部に公開・漏洩させないでください。
 
@@ -479,6 +544,7 @@ https://form.dstylegroup.jp/survey-herbelle.html?tenant=herbelle-chitosefunabash
 
 - パスワード、APIキー、接続文字列を直接書いたファイル
 - `.env` ファイル
+- `local.settings.json` ファイル
 - 個人情報を含むCSV・Excelファイル
 - 認証情報ファイル（serviceAccountKey.json 等）
 
@@ -486,7 +552,7 @@ https://form.dstylegroup.jp/survey-herbelle.html?tenant=herbelle-chitosefunabash
 
 ---
 
-## 9. 重要URL・リソース一覧
+## 10. 重要URL・リソース一覧
 
 | 項目 | URL / 情報 |
 |------|-----------|

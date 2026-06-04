@@ -28,6 +28,45 @@ app.post('/api/auth', async (req, res) => {
     res.status(401).json({ error: 'パスワードが違います' });
 });
 
+// 期間取得・保存
+app.get('/api/period', async (req, res) => {
+    const { tenant } = req.query;
+    if (!tenant) return res.status(400).json({ error: 'tenant は必須です' });
+    try {
+        const client = new CosmosClient(process.env.COSMOS_CONNECTION);
+        const container = client.database(process.env.COSMOS_DATABASE).container(process.env.COSMOS_CONTAINER);
+        const { resource } = await container.item('period_' + tenant, tenant).read();
+        return res.json({
+            startDate: resource ? resource.startDate : null,
+            endDate:   resource ? resource.endDate   : null
+        });
+    } catch (e) {
+        return res.json({ startDate: null, endDate: null });
+    }
+});
+
+app.post('/api/period', async (req, res) => {
+    const token = req.headers['x-admin-token'];
+    if (!token || !validTokens.has(token))
+        return res.status(401).json({ error: '認証が必要です' });
+    const { tenant, startDate, endDate } = req.body;
+    if (!tenant) return res.status(400).json({ error: 'tenant は必須です' });
+    try {
+        const client = new CosmosClient(process.env.COSMOS_CONNECTION);
+        const container = client.database(process.env.COSMOS_DATABASE).container(process.env.COSMOS_CONTAINER);
+        await container.items.upsert({
+            id: 'period_' + tenant,
+            tenant,
+            startDate: startDate || null,
+            endDate:   endDate   || null,
+            updatedAt: new Date().toISOString()
+        });
+        return res.json({ status: 'ok', startDate, endDate });
+    } catch (e) {
+        return res.status(500).json({ error: e.message });
+    }
+});
+
 // データ操作
 app.all('/api/log', async (req, res) => {
     if (req.method === 'GET' || req.method === 'DELETE') {
@@ -61,6 +100,8 @@ app.all('/api/log', async (req, res) => {
 
 app.listen(7071, () => {
     console.log('Local server running at http://localhost:7071');
-    console.log('管理画面: http://localhost:7071/admin-herbelle.html');
-    console.log('アンケート: http://localhost:7071/survey-herbelle.html');
+    console.log('管理画面(Herbelle):   http://localhost:7071/admin-herbelle.html');
+    console.log('管理画面(補正下着):   http://localhost:7071/admin-fitting.html');
+    console.log('アンケート(Herbelle): http://localhost:7071/survey-herbelle.html');
+    console.log('アンケート(補正下着): http://localhost:7071/survey-fitting.html');
 });
