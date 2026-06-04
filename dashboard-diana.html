@@ -811,6 +811,26 @@
     el.style.display = 'inline-block';
     setTimeout(function() { el.style.display = 'none'; }, 3000);
   }
+
+  // F5キーで回答データ更新
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'F5') {
+      e.preventDefault();
+      if (currentSurvey) fetchResponses();
+    }
+  });
+
+  // ページ読み込み時にログイン状態を復元
+  (function() {
+    var t = sessionStorage.getItem('adminToken');
+    var pw = sessionStorage.getItem('savedPW');
+    if (t && pw) {
+      document.getElementById('loginArea').style.display = 'none';
+      document.getElementById('dashContent').style.display = 'block';
+      loadSurveys();
+    }
+  })();
+
 </script>
 </body>
 </html>
