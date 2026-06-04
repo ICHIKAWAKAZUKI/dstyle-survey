@@ -34,7 +34,7 @@ app.http('auth', {
 });
 
 // ----------------------------------------------------
-// 📅 【期間管理】既存互換
+// 📅 【期間管理】
 // ----------------------------------------------------
 app.http('period', {
     methods: ['GET', 'POST'],
@@ -134,7 +134,7 @@ app.http('surveys', {
             const client = new CosmosClient(process.env.COSMOS_CONNECTION);
             const container = client.database(process.env.COSMOS_DATABASE).container(process.env.COSMOS_CONTAINER);
 
-            // GET: アンケート一覧 or 単体取得
+            // GET
             if (request.method === 'GET') {
                 const tenant = url.searchParams.get('tenant');
                 const id = url.searchParams.get('id');
@@ -152,21 +152,23 @@ app.http('surveys', {
                 return { status: 200, headers: { 'Content-Type': 'application/json' }, jsonBody: resources };
             }
 
-            // POST/PUT/DELETE は認証必要
+            // 認証チェック（POST/PUT/DELETE）
             const token = request.headers.get('x-admin-token');
             if (!token || !validTokens.has(token)) return { status: 401, headers: { 'Content-Type': 'application/json' }, jsonBody: { error: '認証が必要です' } };
 
             // POST: 新規作成
             if (request.method === 'POST') {
                 const body = await request.json().catch(() => ({}));
-                const { tenant, title, questions } = body;
+                const { tenant, title, description, questions, active } = body;
                 if (!tenant || !title) return { status: 400, headers: { 'Content-Type': 'application/json' }, jsonBody: { error: 'tenant と title は必須です' } };
                 const newSurvey = {
                     id: 'survey_' + crypto.randomUUID(),
                     docType: 'survey_definition',
                     tenant,
                     title,
+                    description: description || '',
                     questions: questions || [],
+                    active: active !== undefined ? active : true,
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString()
                 };
@@ -177,15 +179,22 @@ app.http('surveys', {
             // PUT: 更新
             if (request.method === 'PUT') {
                 const body = await request.json().catch(() => ({}));
-                const { id, tenant, title, questions } = body;
+                const { id, tenant, title, description, questions, active } = body;
                 if (!id || !tenant) return { status: 400, headers: { 'Content-Type': 'application/json' }, jsonBody: { error: 'id と tenant は必須です' } };
                 const { resource: existing } = await container.item(id, tenant).read();
-                const updated = { ...existing, title: title ?? existing.title, questions: questions ?? existing.questions, updatedAt: new Date().toISOString() };
+                const updated = {
+                    ...existing,
+                    title: title ?? existing.title,
+                    description: description ?? existing.description,
+                    questions: questions ?? existing.questions,
+                    active: active !== undefined ? active : existing.active,
+                    updatedAt: new Date().toISOString()
+                };
                 await container.items.upsert(updated);
                 return { status: 200, headers: { 'Content-Type': 'application/json' }, jsonBody: updated };
             }
 
-            // DELETE: 削除
+            // DELETE
             if (request.method === 'DELETE') {
                 const id = url.searchParams.get('id');
                 const tenant = url.searchParams.get('tenant');
@@ -201,7 +210,7 @@ app.http('surveys', {
 });
 
 // ----------------------------------------------------
-// 💬 【回答データ】新アンケートビルダー用
+// 💬 【回答データ】
 // ----------------------------------------------------
 app.http('response', {
     methods: ['GET', 'POST', 'DELETE'],
