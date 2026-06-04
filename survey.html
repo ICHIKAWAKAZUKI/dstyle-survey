@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>アンケート</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f5f7f5; color: #333; padding: 20px 16px 40px; }
+    .container { max-width: 640px; margin: 0 auto; }
+
+    /* ヘッダー */
+    .header { background: #4A5D4E; color: white; border-radius: 12px 12px 0 0; padding: 28px 24px; text-align: center; }
+    .header h1 { font-size: 22px; margin-bottom: 8px; }
+    .header p { font-size: 14px; opacity: 0.85; line-height: 1.6; }
+    .header .period-badge { margin-top: 10px; font-size: 13px; opacity: 0.75; }
+
+    /* フォーム本体 */
+    .body { background: white; border-radius: 0 0 12px 12px; padding: 28px 24px 32px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+
+    /* 質問セクション */
+    .section { margin-bottom: 28px; }
+    .section-label { font-weight: bold; font-size: 16px; color: #4A5D4E; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .section-label .num { background: #4A5D4E; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+    .required { color: #c0392b; font-size: 12px; margin-left: 4px; }
+
+    /* 入力フィールド */
+    input[type="text"], select, textarea {
+      width: 100%; padding: 14px; border: 1.5px solid #ddd; border-radius: 8px;
+      font-size: 16px; background: #fafafa; -webkit-appearance: none; appearance: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus, select:focus, textarea:focus { border-color: #4A5D4E; background: #fff; outline: none; }
+    textarea { height: 110px; resize: vertical; }
+
+    /* ラジオ・チェックボックス */
+    .radio-group { display: flex; flex-direction: column; gap: 10px; }
+    .radio-label {
+      display: flex; align-items: center; padding: 14px 16px;
+      border: 1.5px solid #ddd; border-radius: 8px; cursor: pointer;
+      font-size: 15px; transition: all 0.2s; background: #fafafa;
+    }
+    .radio-label:hover { border-color: #4A5D4E; background: #f0f4f0; }
+    .radio-label input[type="radio"],
+    .radio-label input[type="checkbox"] { margin-right: 12px; width: 20px; height: 20px; accent-color: #4A5D4E; flex-shrink: 0; }
+    .radio-label.selected { border-color: #4A5D4E; background: #eef3ee; font-weight: bold; }
+
+    /* 送信ボタン */
+    .submit-btn {
+      width: 100%; padding: 18px; background: #4A5D4E; color: white;
+      border: none; border-radius: 10px; font-size: 18px; font-weight: bold;
+      cursor: pointer; transition: background 0.2s; margin-top: 8px;
+      box-shadow: 0 4px 12px rgba(74,93,78,0.3); -webkit-appearance: none;
+    }
+    .submit-btn:hover { background: #3b4d3f; }
+    .submit-btn:disabled { background: #999; cursor: not-allowed; }
+
+    /* エラー */
+    .error-msg { margin-top: 20px; padding: 16px; border-radius: 8px; font-weight: bold; text-align: center; display: none; font-size: 16px; background: #fce8e6; color: #c5221f; border: 1px solid #f5c6c2; }
+
+    /* 期間外・ロード画面 */
+    .period-error { text-align: center; padding: 60px 24px; background: white; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+    .period-error .icon { font-size: 48px; margin-bottom: 16px; }
+    .period-error h2 { font-size: 22px; margin-bottom: 12px; color: #4A5D4E; }
+    .period-error p { color: #888; font-size: 15px; line-height: 1.7; }
+    .period-error .period-info { margin-top: 20px; padding: 16px; background: #f5f7f5; border-radius: 8px; font-size: 14px; color: #666; }
+    .loading-screen { text-align: center; padding: 60px 24px; color: #888; font-size: 16px; }
+
+    /* 送信完了画面 */
+    .thanks-screen { display: none; text-align: center; padding: 48px 24px; background: white; border-radius: 0 0 12px 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+    .thanks-icon { font-size: 64px; margin-bottom: 20px; }
+    .thanks-title { font-size: 24px; font-weight: bold; color: #4A5D4E; margin-bottom: 16px; }
+    .thanks-message { font-size: 16px; color: #555; line-height: 1.8; margin-bottom: 24px; }
+    .thanks-sub { font-size: 14px; color: #888; line-height: 1.7; padding: 16px; background: #f5f7f5; border-radius: 8px; }
+
+    .divider { border: none; border-top: 1px solid #eee; margin: 8px 0 28px; }
+
+    @media (min-width: 480px) {
+      .radio-group.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container" id="app">
+  <div class="loading-screen">読み込み中...</div>
+</div>
+
+<div id="surveyTemplate" style="display:none">
+  <div class="header" id="surveyHeader">
+    <h1 id="surveyTitle"></h1>
+    <p id="surveyDescription"></p>
+    <p class="period-badge" id="periodBadge"></p>
+  </div>
+  <div class="body" id="formArea">
+    <form id="surveyForm"></form>
+    <div id="errorMsg" class="error-msg"></div>
+  </div>
+  <div class="thanks-screen" id="thanksScreen">
+    <div class="thanks-icon">✅</div>
+    <div class="thanks-title">ありがとうございました！</div>
+    <div class="thanks-message">アンケートへのご協力、誠にありがとうございます。<br>皆様のご意見を今後のサービス向上に活かしてまいります。</div>
+    <div class="thanks-sub">またのご来店を心よりお待ちしております。</div>
+  </div>
+</div>
+
+<script>
+  var params = new URLSearchParams(location.search);
+  var SURVEY_ID = params.get('id');
+  var TENANT    = params.get('tenant');
+
+  var BASE_URL = location.hostname === 'localhost'
+    ? 'http://localhost:7071'
+    : 'https://func-dstyle-survey-gab2dwg3gdcqecgz.japaneast-01.azurewebsites.net';
+
+  // ヘッダーカラー（テナントごとに変更可能）
+  var TENANT_COLORS = {
+    'herbelle': '#4A5D4E',
+    'herbelle-chitosefunabashi': '#4A5D4E',
+    'diana-fitting': '#7B4F6E',
+    'diana': '#7B4F6E'
+  };
+
+  function getColor() {
+    return TENANT_COLORS[TENANT] || '#4A5D4E';
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '';
+    var parts = dateStr.split('-');
+    return parts[0] + '年' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
+  }
+
+  function checkPeriod(startDate, endDate) {
+    var today = new Date().toISOString().slice(0, 10);
+    if (startDate && today < startDate) return 'before';
+    if (endDate   && today > endDate)   return 'after';
+    return 'active';
+  }
+
+  function renderPeriodError(status, startDate, endDate) {
+    var startStr = formatDate(startDate);
+    var endStr   = formatDate(endDate);
+    var periodText = '';
+    if (startStr && endStr) periodText = startStr + ' 〜 ' + endStr;
+    else if (startStr) periodText = startStr + ' 以降';
+    else if (endStr)   periodText = endStr + ' まで';
+    var isBefore = status === 'before';
+    var app = document.getElementById('app');
+    app.innerHTML = '';
+    var div = document.createElement('div');
+    div.className = 'period-error';
+    div.innerHTML =
+      '<div class="icon">' + (isBefore ? '🗓️' : '🔒') + '</div>' +
+      '<h2 style="color:' + getColor() + '">' + (isBefore ? '受付開始前です' : '受付期間が終了しました') + '</h2>' +
+      '<p>' + (isBefore
+        ? 'このアンケートはまだ受付を開始していません。<br>開始日以降に再度アクセスしてください。'
+        : 'このアンケートの受付期間は終了しました。<br>ご協力いただいた方々、ありがとうございました。'
+      ) + '</p>' +
+      (periodText ? '<div class="period-info">📅 受付期間：' + periodText + '</div>' : '');
+    app.appendChild(div);
+  }
+
+  // 質問を動的に生成
+  function buildForm(survey) {
+    var form = document.getElementById('surveyForm');
+    var color = getColor();
+    var html = '';
+
+    survey.questions.forEach(function(q, i) {
+      html += '<div class="section">';
+      html += '<div class="section-label" style="color:' + color + '">';
+      html += '<span class="num" style="background:' + color + '">' + (i + 1) + '</span>';
+      html += q.label;
+      if (q.required) html += '<span class="required">※必須</span>';
+      html += '</div>';
+
+      if (q.type === 'text') {
+        html += '<input type="text" id="q_' + q.id + '" ' + (q.required ? 'required' : '') + ' placeholder="' + (q.placeholder || '') + '">';
+
+      } else if (q.type === 'textarea') {
+        html += '<textarea id="q_' + q.id + '" placeholder="' + (q.placeholder || '') + '"></textarea>';
+
+      } else if (q.type === 'select') {
+        html += '<select id="q_' + q.id + '">';
+        html += '<option value="">選択してください</option>';
+        (q.options || []).forEach(function(opt) {
+          html += '<option value="' + opt + '">' + opt + '</option>';
+        });
+        html += '</select>';
+
+      } else if (q.type === 'radio') {
+        var cols = (q.options || []).length <= 4 ? ' two-col' : '';
+        html += '<div class="radio-group' + cols + '" id="group_' + q.id + '">';
+        (q.options || []).forEach(function(opt) {
+          html += '<label class="radio-label">';
+          html += '<input type="radio" name="q_' + q.id + '" value="' + opt + '"> ' + opt;
+          html += '</label>';
+        });
+        html += '</div>';
+
+      } else if (q.type === 'checkbox') {
+        html += '<div class="radio-group" id="group_' + q.id + '">';
+        (q.options || []).forEach(function(opt) {
+          html += '<label class="radio-label">';
+          html += '<input type="checkbox" name="q_' + q.id + '" value="' + opt + '"> ' + opt;
+          html += '</label>';
+        });
+        html += '</div>';
+      }
+
+      html += '</div>';
+
+      // 最後の質問の前に仕切り線
+      if (i === survey.questions.length - 2) {
+        html += '<hr class="divider">';
+      }
+    });
+
+    html += '<button type="submit" class="submit-btn" id="submitBtn" style="background:' + color + ';box-shadow:0 4px 12px rgba(0,0,0,0.2)">アンケートを送信する 📩</button>';
+    form.innerHTML = html;
+
+    // ラジオ・チェックボックスのハイライト
+    document.querySelectorAll('.radio-group').forEach(function(group) {
+      group.querySelectorAll('.radio-label').forEach(function(label) {
+        label.addEventListener('click', function() {
+          var input = label.querySelector('input');
+          if (input && input.type === 'radio') {
+            group.querySelectorAll('.radio-label').forEach(function(l) { l.classList.remove('selected'); });
+            label.classList.add('selected');
+          } else if (input && input.type === 'checkbox') {
+            setTimeout(function() {
+              label.classList.toggle('selected', input.checked);
+            }, 0);
+          }
+        });
+      });
+    });
+
+    // Enterキー制御
+    form.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+      }
+    });
+
+    // 送信処理
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var btn = document.getElementById('submitBtn');
+      var errorMsg = document.getElementById('errorMsg');
+      btn.disabled = true;
+      btn.textContent = '送信中...';
+      errorMsg.style.display = 'none';
+
+      var answers = {};
+      survey.questions.forEach(function(q) {
+        if (q.type === 'text') {
+          answers[q.id] = document.getElementById('q_' + q.id).value;
+        } else if (q.type === 'textarea') {
+          answers[q.id] = document.getElementById('q_' + q.id).value;
+        } else if (q.type === 'select') {
+          answers[q.id] = document.getElementById('q_' + q.id).value;
+        } else if (q.type === 'radio') {
+          var checked = document.querySelector('input[name="q_' + q.id + '"]:checked');
+          answers[q.id] = checked ? checked.value : '未選択';
+        } else if (q.type === 'checkbox') {
+          var checkedBoxes = document.querySelectorAll('input[name="q_' + q.id + '"]:checked');
+          answers[q.id] = Array.from(checkedBoxes).map(function(c) { return c.value; }).join(', ');
+        }
+      });
+
+      try {
+        var res = await fetch(BASE_URL + '/api/response', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ surveyId: SURVEY_ID, tenant: TENANT, answers: answers })
+        });
+        if (res.ok) {
+          document.getElementById('formArea').style.display = 'none';
+          document.getElementById('thanksScreen').style.display = 'block';
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          var err = await res.json().catch(function() { return {}; });
+          throw new Error(err.error || '送信エラー');
+        }
+      } catch (err) {
+        errorMsg.textContent = '❌ エラー: ' + err.message;
+        errorMsg.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'アンケートを送信する 📩';
+      }
+    });
+  }
+
+  function renderSurvey(survey, endDate) {
+    var template = document.getElementById('surveyTemplate');
+    var app = document.getElementById('app');
+    app.innerHTML = '';
+    while (template.firstChild) {
+      app.appendChild(template.firstChild);
+    }
+
+    // ヘッダー設定
+    var color = getColor();
+    document.getElementById('surveyHeader').style.background = color;
+    document.getElementById('surveyTitle').textContent = survey.title;
+    if (survey.description) {
+      document.getElementById('surveyDescription').textContent = survey.description;
+    }
+    var badge = document.getElementById('periodBadge');
+    if (endDate && badge) {
+      badge.textContent = '📅 受付期間：' + formatDate(endDate) + ' まで';
+    }
+
+    buildForm(survey);
+  }
+
+  // 初期化
+  async function init() {
+    if (!SURVEY_ID || !TENANT) {
+      var app = document.getElementById('app');
+      app.innerHTML = '<div class="period-error"><div class="icon">⚠️</div><h2>URLが正しくありません</h2><p>アンケートIDとテナントIDが必要です。</p></div>';
+      return;
+    }
+
+    try {
+      // アンケート定義と期間を並列取得
+      var [surveyRes, periodRes] = await Promise.all([
+        fetch(BASE_URL + '/api/surveys?tenant=' + TENANT + '&id=' + SURVEY_ID),
+        fetch(BASE_URL + '/api/period?surveyId=' + SURVEY_ID)
+      ]);
+
+      if (!surveyRes.ok) throw new Error('アンケートが見つかりません');
+      var survey = await surveyRes.json();
+      var period = await periodRes.json().catch(function() { return {}; });
+
+      var startDate = period.startDate || null;
+      var endDate   = period.endDate   || null;
+      var status = checkPeriod(startDate, endDate);
+
+      if (status === 'active') {
+        renderSurvey(survey, endDate);
+      } else {
+        renderPeriodError(status, startDate, endDate);
+      }
+    } catch (e) {
+      var app = document.getElementById('app');
+      app.innerHTML = '<div class="period-error"><div class="icon">⚠️</div><h2>読み込みエラー</h2><p>' + e.message + '</p></div>';
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>
