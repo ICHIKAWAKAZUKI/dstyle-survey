@@ -71,18 +71,6 @@ app.http('period', {
     handler: async (request, context) => {
         try {
             const url = new URL(request.url);
-            const tenant = request.method === 'GET'
-                ? url.searchParams.get('tenant')
-                : (await request.json().then(b => b.tenant).catch(() => null));
-
-            if (!tenant) {
-                return {
-                    status: 400,
-                    headers: { 'Content-Type': 'application/json' },
-                    jsonBody: { error: 'tenant は必須です' }
-                };
-            }
-
             const client = new CosmosClient(process.env.COSMOS_CONNECTION);
             const container = client
                 .database(process.env.COSMOS_DATABASE)
@@ -90,6 +78,14 @@ app.http('period', {
 
             // GET: 期間を取得
             if (request.method === 'GET') {
+                const tenant = url.searchParams.get('tenant');
+                if (!tenant) {
+                    return {
+                        status: 400,
+                        headers: { 'Content-Type': 'application/json' },
+                        jsonBody: { error: 'tenant は必須です' }
+                    };
+                }
                 try {
                     const { resource } = await container.item('period_' + tenant, tenant).read();
                     return {
@@ -101,7 +97,6 @@ app.http('period', {
                         }
                     };
                 } catch (e) {
-                    // ドキュメントが存在しない場合は期間なしを返す
                     return {
                         status: 200,
                         headers: { 'Content-Type': 'application/json' },
@@ -122,7 +117,15 @@ app.http('period', {
                 }
 
                 const body = await request.json().catch(() => ({}));
-                const { startDate, endDate } = body;
+                const { tenant, startDate, endDate } = body;
+
+                if (!tenant) {
+                    return {
+                        status: 400,
+                        headers: { 'Content-Type': 'application/json' },
+                        jsonBody: { error: 'tenant は必須です' }
+                    };
+                }
 
                 await container.items.upsert({
                     id: 'period_' + tenant,
