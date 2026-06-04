@@ -11,6 +11,7 @@
     .header { background: #4A5D4E; color: white; border-radius: 12px 12px 0 0; padding: 28px 24px; text-align: center; }
     .header h1 { font-size: 22px; margin-bottom: 8px; }
     .header p { font-size: 14px; opacity: 0.85; line-height: 1.6; }
+    .header .period-badge { margin-top: 10px; font-size: 13px; opacity: 0.75; }
     .body { background: white; border-radius: 0 0 12px 12px; padding: 28px 24px 32px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
     .section { margin-bottom: 28px; }
     .section-label { font-weight: bold; font-size: 16px; color: #4A5D4E; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
@@ -43,13 +44,24 @@
     .error-msg { margin-top: 20px; padding: 16px; border-radius: 8px; font-weight: bold; text-align: center; display: none; font-size: 16px; background: #fce8e6; color: #c5221f; border: 1px solid #f5c6c2; }
     .divider { border: none; border-top: 1px solid #eee; margin: 8px 0 28px; }
 
+    /* 期間外画面 */
+    .period-error {
+      text-align: center; padding: 60px 24px;
+      background: white; border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+    .period-error .icon { font-size: 48px; margin-bottom: 16px; }
+    .period-error h2 { color: #4A5D4E; font-size: 22px; margin-bottom: 12px; }
+    .period-error p { color: #888; font-size: 15px; line-height: 1.7; }
+    .period-error .period-info { margin-top: 20px; padding: 16px; background: #f5f7f5; border-radius: 8px; font-size: 14px; color: #666; }
+
+    /* 読み込み中 */
+    .loading-screen { text-align: center; padding: 60px 24px; color: #888; font-size: 16px; }
+
     /* 送信完了画面 */
     .thanks-screen {
-      display: none;
-      text-align: center;
-      padding: 48px 24px;
-      background: white;
-      border-radius: 0 0 12px 12px;
+      display: none; text-align: center; padding: 48px 24px;
+      background: white; border-radius: 0 0 12px 12px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.08);
     }
     .thanks-icon { font-size: 64px; margin-bottom: 20px; }
@@ -63,10 +75,16 @@
   </style>
 </head>
 <body>
-<div class="container">
+<div class="container" id="app">
+  <div class="loading-screen">読み込み中...</div>
+</div>
+
+<!-- アンケート本体テンプレート（非表示） -->
+<div id="surveyTemplate" style="display:none">
   <div class="header">
     <h1>🌿 無料体験アンケート</h1>
     <p>本日はHerbelleにお越しいただきありがとうございました。<br>率直なご感想をお聞かせください（約2分）</p>
+    <p class="period-badge" id="periodBadge"></p>
   </div>
 
   <!-- アンケートフォーム -->
@@ -156,76 +174,149 @@
 </div>
 
 <script>
-  const BASE_URL = location.hostname === 'localhost'
+  var TENANT = new URLSearchParams(location.search).get('tenant') || 'herbelle-chitosefunabashi';
+  var TYPE   = new URLSearchParams(location.search).get('type')   || 'free_trial_survey';
+
+  var BASE_URL = location.hostname === 'localhost'
     ? 'http://localhost:7071'
     : 'https://func-dstyle-survey-gab2dwg3gdcqecgz.japaneast-01.azurewebsites.net';
 
-  // Enterキーで送信されないように制御
-  document.getElementById('surveyForm').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
-      e.preventDefault();
-    }
-  });
+  function formatDate(dateStr) {
+    if (!dateStr) return '';
+    var parts = dateStr.split('-');
+    return parts[0] + '年' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
+  }
 
-  document.querySelectorAll('.radio-group').forEach(group => {
-    group.querySelectorAll('.radio-label').forEach(label => {
-      label.addEventListener('click', () => {
-        group.querySelectorAll('.radio-label').forEach(l => l.classList.remove('selected'));
-        label.classList.add('selected');
+  function checkPeriod(startDate, endDate) {
+    var today = new Date().toISOString().slice(0, 10);
+    if (startDate && today < startDate) return 'before';
+    if (endDate   && today > endDate)   return 'after';
+    return 'active';
+  }
+
+  function renderPeriodError(status, startDate, endDate) {
+    var startStr = formatDate(startDate);
+    var endStr   = formatDate(endDate);
+    var periodText = '';
+    if (startStr && endStr) periodText = startStr + ' 〜 ' + endStr;
+    else if (startStr) periodText = startStr + ' 以降';
+    else if (endStr)   periodText = endStr + ' まで';
+
+    var isBefore = status === 'before';
+    var app = document.getElementById('app');
+    app.innerHTML = '';
+    var div = document.createElement('div');
+    div.className = 'period-error';
+    div.innerHTML =
+      '<div class="icon">' + (isBefore ? '🗓️' : '🔒') + '</div>' +
+      '<h2>' + (isBefore ? '受付開始前です' : '受付期間が終了しました') + '</h2>' +
+      '<p>' + (isBefore
+        ? 'このアンケートはまだ受付を開始していません。<br>開始日以降に再度アクセスしてください。'
+        : 'このアンケートの受付期間は終了しました。<br>ご協力いただいた方々、ありがとうございました。'
+      ) + '</p>' +
+      (periodText ? '<div class="period-info">📅 受付期間：' + periodText + '</div>' : '');
+    app.appendChild(div);
+  }
+
+  function renderSurvey(endDate) {
+    var template = document.getElementById('surveyTemplate');
+    var app = document.getElementById('app');
+    app.innerHTML = '';
+    while (template.firstChild) {
+      app.appendChild(template.firstChild);
+    }
+
+    var badge = document.getElementById('periodBadge');
+    if (endDate && badge) {
+      badge.textContent = '📅 受付期間：' + formatDate(endDate) + ' まで';
+    }
+
+    // Enterキーで送信されないように制御
+    document.getElementById('surveyForm').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+      }
+    });
+
+    document.querySelectorAll('.radio-group').forEach(function(group) {
+      group.querySelectorAll('.radio-label').forEach(function(label) {
+        label.addEventListener('click', function() {
+          group.querySelectorAll('.radio-label').forEach(function(l) { l.classList.remove('selected'); });
+          label.classList.add('selected');
+        });
       });
     });
-  });
 
-  document.getElementById('surveyForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = document.getElementById('submitBtn');
-    const errorMsg = document.getElementById('errorMsg');
-    btn.disabled = true;
-    btn.textContent = '送信中...';
-    errorMsg.style.display = 'none';
+    document.getElementById('surveyForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var btn = document.getElementById('submitBtn');
+      var errorMsg = document.getElementById('errorMsg');
+      btn.disabled = true;
+      btn.textContent = '送信中...';
+      errorMsg.style.display = 'none';
 
-    const get = (name) => {
-      const el = document.querySelector(`input[name="${name}"]:checked`);
-      return el ? el.value : '未選択';
-    };
-
-    const payload = {
-      tenant: new URLSearchParams(location.search).get('tenant') || 'herbelle-chitosefunabashi',
-      type: new URLSearchParams(location.search).get('type') || 'free_trial_survey',
-      data: {
-        customerName: document.getElementById('customerName').value,
-        menu: document.getElementById('menu').value,
-        satisfaction: get('satisfaction'),
-        bodyChange: get('bodyChange'),
-        continuation: get('continuation'),
-        frequency: get('frequency'),
-        referral: get('referral'),
-        feedback: document.getElementById('feedback').value,
+      function getRadio(name) {
+        var el = document.querySelector('input[name="' + name + '"]:checked');
+        return el ? el.value : '未選択';
       }
-    };
 
+      var payload = {
+        tenant: TENANT,
+        type:   TYPE,
+        data: {
+          customerName: document.getElementById('customerName').value,
+          menu:         document.getElementById('menu').value,
+          satisfaction: getRadio('satisfaction'),
+          bodyChange:   getRadio('bodyChange'),
+          continuation: getRadio('continuation'),
+          frequency:    getRadio('frequency'),
+          referral:     getRadio('referral'),
+          feedback:     document.getElementById('feedback').value,
+        }
+      };
+
+      try {
+        var res = await fetch(BASE_URL + '/api/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          document.getElementById('formArea').style.display = 'none';
+          document.getElementById('thanksScreen').style.display = 'block';
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          var err = await res.json().catch(function() { return {}; });
+          throw new Error(err.error || '送信エラー');
+        }
+      } catch (err) {
+        errorMsg.textContent = '❌ エラー: ' + err.message;
+        errorMsg.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'アンケートを送信する 📩';
+      }
+    });
+  }
+
+  // 初期化：APIから期間を取得してから画面を表示
+  async function init() {
     try {
-      const res = await fetch(`${BASE_URL}/api/log`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        // フォームを隠してありがとう画面を表示
-        document.getElementById('formArea').style.display = 'none';
-        document.getElementById('thanksScreen').style.display = 'block';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+      var res = await fetch(BASE_URL + '/api/period?tenant=' + TENANT);
+      var period = await res.json();
+      var startDate = period.startDate || null;
+      var endDate   = period.endDate   || null;
+      var status = checkPeriod(startDate, endDate);
+      if (status === 'active') {
+        renderSurvey(endDate);
       } else {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || '送信エラー');
+        renderPeriodError(status, startDate, endDate);
       }
-    } catch (err) {
-      errorMsg.textContent = '❌ エラー: ' + err.message;
-      errorMsg.style.display = 'block';
-      btn.disabled = false;
-      btn.textContent = 'アンケートを送信する 📩';
+    } catch (e) {
+      renderSurvey(null);
     }
-  });
+  }
+
+  init();
 </script>
 </body>
 </html>
