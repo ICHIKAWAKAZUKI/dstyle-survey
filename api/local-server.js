@@ -8,9 +8,47 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..')));
 
-const validTokens = new Set();
+// ----------------------------------------------------
+// 🔑 トークン管理（Cosmos DB永続化）
+// ----------------------------------------------------
+async function getContainer() {
+    const client = new CosmosClient(process.env.COSMOS_CONNECTION);
+    return client.database(process.env.COSMOS_DATABASE).container(process.env.COSMOS_CONTAINER);
+}
 
+async function issueToken() {
+    const container = await getContainer();
+    const token = crypto.randomBytes(16).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    await container.items.upsert({
+        id: 'token_' + token,
+        docType: 'auth_token',
+        tenant: 'auth_token',
+        token,
+        expiresAt
+    });
+    return token;
+}
+
+async function verifyToken(token) {
+    if (!token) return false;
+    try {
+        const container = await getContainer();
+        const { resource } = await container.item('token_' + token, 'auth_token').read();
+        if (!resource) return false;
+        if (new Date(resource.expiresAt) < new Date()) {
+            await container.item('token_' + token, 'auth_token').delete().catch(() => {});
+            return false;
+        }
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+// ----------------------------------------------------
 // 認証
+// ----------------------------------------------------
 app.post('/api/auth', async (req, res) => {
     const { password, tenant } = req.body;
     if (!tenant) return res.status(400).json({ error: 'tenant は必須です' });
@@ -18,29 +56,25 @@ app.post('/api/auth', async (req, res) => {
     const correctPW = process.env[envKey];
     if (!correctPW) return res.status(401).json({ error: 'このテナントは設定されていません' });
 
-    const client = new CosmosClient(process.env.COSMOS_CONNECTION);
-    const container = client.database(process.env.COSMOS_DATABASE).container(process.env.COSMOS_CONTAINER);
+    const container = await getContainer();
 
     if (password === correctPW) {
-        const token = crypto.randomBytes(16).toString('hex');
-        validTokens.add(token);
-        setTimeout(() => validTokens.delete(token), 24 * 60 * 60 * 1000);
-        // アクセスログ記録（成功）
+        const token = await issueToken();
         await container.items.create({ id: crypto.randomUUID(), docType: 'access_log', tenant, result: 'success', ip: req.ip || 'localhost', createdAt: new Date().toISOString() }).catch(() => {});
         return res.json({ token });
     }
-    // アクセスログ記録（失敗）
     await container.items.create({ id: crypto.randomUUID(), docType: 'access_log', tenant, result: 'failure', ip: req.ip || 'localhost', createdAt: new Date().toISOString() }).catch(() => {});
     res.status(401).json({ error: 'パスワードが違います' });
 });
 
+// ----------------------------------------------------
 // 期間取得・保存
+// ----------------------------------------------------
 app.get('/api/period', async (req, res) => {
     const { tenant, surveyId } = req.query;
     if (!tenant && !surveyId) return res.status(400).json({ error: 'tenant または surveyId は必須です' });
     try {
-        const client = new CosmosClient(process.env.COSMOS_CONNECTION);
-        const container = client.database(process.env.COSMOS_DATABASE).container(process.env.COSMOS_CONTAINER);
+        const container = await getContainer();
         const id = surveyId ? 'period_survey_' + surveyId : 'period_' + tenant;
         const pk = surveyId ? 'survey_period' : tenant;
         const { resource } = await container.item(id, pk).read();
@@ -49,12 +83,10 @@ app.get('/api/period', async (req, res) => {
 });
 
 app.post('/api/period', async (req, res) => {
-    const token = req.headers['x-admin-token'];
-    if (!token || !validTokens.has(token)) return res.status(401).json({ error: '認証が必要です' });
+    if (!await verifyToken(req.headers['x-admin-token'])) return res.status(401).json({ error: '認証が必要です' });
     const { tenant, surveyId, startDate, endDate } = req.body;
     try {
-        const client = new CosmosClient(process.env.COSMOS_CONNECTION);
-        const container = client.database(process.env.COSMOS_DATABASE).container(process.env.COSMOS_CONTAINER);
+        const container = await getContainer();
         const id = surveyId ? 'period_survey_' + surveyId : 'period_' + tenant;
         const pk = surveyId ? 'survey_period' : tenant;
         await container.items.upsert({ id, tenant: pk, startDate: startDate || null, endDate: endDate || null, updatedAt: new Date().toISOString() });
@@ -62,13 +94,14 @@ app.post('/api/period', async (req, res) => {
     } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
+// ----------------------------------------------------
 // アンケート定義 CRUD
+// ----------------------------------------------------
 app.get('/api/surveys', async (req, res) => {
     const { tenant, id } = req.query;
     if (!tenant) return res.status(400).json({ error: 'tenant は必須です' });
     try {
-        const client = new CosmosClient(process.env.COSMOS_CONNECTION);
-        const container = client.database(process.env.COSMOS_DATABASE).container(process.env.COSMOS_CONTAINER);
+        const container = await getContainer();
         if (id) { const { resource } = await container.item(id, tenant).read(); return res.json(resource); }
         const { resources } = await container.items.query({
             query: "SELECT * FROM c WHERE c.tenant = @tenant AND c.docType = 'survey_definition' ORDER BY c.createdAt DESC",
@@ -79,13 +112,11 @@ app.get('/api/surveys', async (req, res) => {
 });
 
 app.post('/api/surveys', async (req, res) => {
-    const token = req.headers['x-admin-token'];
-    if (!token || !validTokens.has(token)) return res.status(401).json({ error: '認証が必要です' });
+    if (!await verifyToken(req.headers['x-admin-token'])) return res.status(401).json({ error: '認証が必要です' });
     const { tenant, title, description, questions, active, thanksMessage } = req.body;
     if (!tenant || !title) return res.status(400).json({ error: 'tenant と title は必須です' });
     try {
-        const client = new CosmosClient(process.env.COSMOS_CONNECTION);
-        const container = client.database(process.env.COSMOS_DATABASE).container(process.env.COSMOS_CONTAINER);
+        const container = await getContainer();
         const newSurvey = {
             id: 'survey_' + crypto.randomUUID(), docType: 'survey_definition',
             tenant, title, description: description || '', questions: questions || [],
@@ -99,13 +130,11 @@ app.post('/api/surveys', async (req, res) => {
 });
 
 app.put('/api/surveys', async (req, res) => {
-    const token = req.headers['x-admin-token'];
-    if (!token || !validTokens.has(token)) return res.status(401).json({ error: '認証が必要です' });
+    if (!await verifyToken(req.headers['x-admin-token'])) return res.status(401).json({ error: '認証が必要です' });
     const { id, tenant, title, description, questions, active, thanksMessage } = req.body;
     if (!id || !tenant) return res.status(400).json({ error: 'id と tenant は必須です' });
     try {
-        const client = new CosmosClient(process.env.COSMOS_CONNECTION);
-        const container = client.database(process.env.COSMOS_DATABASE).container(process.env.COSMOS_CONTAINER);
+        const container = await getContainer();
         const { resource: existing } = await container.item(id, tenant).read();
         const updated = {
             ...existing,
@@ -122,38 +151,35 @@ app.put('/api/surveys', async (req, res) => {
 });
 
 app.delete('/api/surveys', async (req, res) => {
-    const token = req.headers['x-admin-token'];
-    if (!token || !validTokens.has(token)) return res.status(401).json({ error: '認証が必要です' });
+    if (!await verifyToken(req.headers['x-admin-token'])) return res.status(401).json({ error: '認証が必要です' });
     const { id, tenant } = req.query;
     if (!id || !tenant) return res.status(400).json({ error: 'id と tenant は必須です' });
     try {
-        const client = new CosmosClient(process.env.COSMOS_CONNECTION);
-        const container = client.database(process.env.COSMOS_DATABASE).container(process.env.COSMOS_CONTAINER);
+        const container = await getContainer();
         await container.item(id, tenant).delete();
         return res.json({ status: 'deleted' });
     } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
+// ----------------------------------------------------
 // 回答データ
+// ----------------------------------------------------
 app.post('/api/response', async (req, res) => {
     const { surveyId, tenant, answers } = req.body;
     if (!surveyId || !tenant || !answers) return res.status(400).json({ error: 'surveyId, tenant, answers は必須です' });
     try {
-        const client = new CosmosClient(process.env.COSMOS_CONNECTION);
-        const container = client.database(process.env.COSMOS_DATABASE).container(process.env.COSMOS_CONTAINER);
+        const container = await getContainer();
         await container.items.create({ id: crypto.randomUUID(), docType: 'survey_response', surveyId, tenant, answers, createdAt: new Date().toISOString() });
         return res.status(201).json({ status: 'ok' });
     } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/response', async (req, res) => {
-    const token = req.headers['x-admin-token'];
-    if (!token || !validTokens.has(token)) return res.status(401).json({ error: '認証が必要です' });
+    if (!await verifyToken(req.headers['x-admin-token'])) return res.status(401).json({ error: '認証が必要です' });
     const { surveyId, tenant } = req.query;
     if (!surveyId || !tenant) return res.status(400).json({ error: 'surveyId と tenant は必須です' });
     try {
-        const client = new CosmosClient(process.env.COSMOS_CONNECTION);
-        const container = client.database(process.env.COSMOS_DATABASE).container(process.env.COSMOS_CONTAINER);
+        const container = await getContainer();
         const { resources } = await container.items.query({
             query: "SELECT * FROM c WHERE c.tenant = @tenant AND c.surveyId = @surveyId AND c.docType = 'survey_response' ORDER BY c.createdAt DESC",
             parameters: [{ name: "@tenant", value: tenant }, { name: "@surveyId", value: surveyId }]
@@ -163,26 +189,24 @@ app.get('/api/response', async (req, res) => {
 });
 
 app.delete('/api/response', async (req, res) => {
-    const token = req.headers['x-admin-token'];
-    if (!token || !validTokens.has(token)) return res.status(401).json({ error: '認証が必要です' });
+    if (!await verifyToken(req.headers['x-admin-token'])) return res.status(401).json({ error: '認証が必要です' });
     const { id, tenant } = req.query;
     if (!id || !tenant) return res.status(400).json({ error: 'id と tenant は必須です' });
     try {
-        const client = new CosmosClient(process.env.COSMOS_CONNECTION);
-        const container = client.database(process.env.COSMOS_DATABASE).container(process.env.COSMOS_CONTAINER);
+        const container = await getContainer();
         await container.item(id, tenant).delete();
         return res.json({ status: 'deleted' });
     } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
+// ----------------------------------------------------
 // アクセスログ取得
+// ----------------------------------------------------
 app.get('/api/accesslog', async (req, res) => {
-    const token = req.headers['x-admin-token'];
-    if (!token || !validTokens.has(token)) return res.status(401).json({ error: '認証が必要です' });
+    if (!await verifyToken(req.headers['x-admin-token'])) return res.status(401).json({ error: '認証が必要です' });
     const { tenant } = req.query;
     try {
-        const client = new CosmosClient(process.env.COSMOS_CONNECTION);
-        const container = client.database(process.env.COSMOS_DATABASE).container(process.env.COSMOS_CONTAINER);
+        const container = await getContainer();
         let query = "SELECT TOP 200 * FROM c WHERE c.docType = 'access_log' ORDER BY c.createdAt DESC";
         let parameters = [];
         if (tenant) { query = "SELECT TOP 200 * FROM c WHERE c.docType = 'access_log' AND c.tenant = @tenant ORDER BY c.createdAt DESC"; parameters = [{ name: "@tenant", value: tenant }]; }
@@ -191,15 +215,15 @@ app.get('/api/accesslog', async (req, res) => {
     } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
+// ----------------------------------------------------
 // 回答数サマリー
+// ----------------------------------------------------
 app.post('/api/responsecounts', async (req, res) => {
-    const token = req.headers['x-admin-token'];
-    if (!token || !validTokens.has(token)) return res.status(401).json({ error: '認証が必要です' });
+    if (!await verifyToken(req.headers['x-admin-token'])) return res.status(401).json({ error: '認証が必要です' });
     const { tenant, surveyIds } = req.body;
     if (!tenant || !surveyIds) return res.status(400).json({ error: 'tenant と surveyIds は必須です' });
     try {
-        const client = new CosmosClient(process.env.COSMOS_CONNECTION);
-        const container = client.database(process.env.COSMOS_DATABASE).container(process.env.COSMOS_CONTAINER);
+        const container = await getContainer();
         const counts = {};
         surveyIds.forEach(id => counts[id] = 0);
         const { resources } = await container.items.query({
@@ -211,15 +235,15 @@ app.post('/api/responsecounts', async (req, res) => {
     } catch (e) { return res.json({}); }
 });
 
+// ----------------------------------------------------
 // 既存ログ互換
+// ----------------------------------------------------
 app.all('/api/log', async (req, res) => {
     if (req.method === 'GET' || req.method === 'DELETE') {
-        const token = req.headers['x-admin-token'];
-        if (!token || !validTokens.has(token)) return res.status(401).json({ error: '認証が必要です' });
+        if (!await verifyToken(req.headers['x-admin-token'])) return res.status(401).json({ error: '認証が必要です' });
     }
     try {
-        const client = new CosmosClient(process.env.COSMOS_CONNECTION);
-        const container = client.database(process.env.COSMOS_DATABASE).container(process.env.COSMOS_CONTAINER);
+        const container = await getContainer();
         if (req.method === 'DELETE') { const { id, tenant } = req.query; await container.item(id, tenant).delete(); return res.json({ status: 'deleted' }); }
         if (req.method === 'GET') {
             const { tenant, type } = req.query;
@@ -232,6 +256,9 @@ app.all('/api/log', async (req, res) => {
     } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
+// ----------------------------------------------------
+// 起動
+// ----------------------------------------------------
 app.listen(7071, () => {
     console.log('');
     console.log('✅ ローカルサーバー起動中');
