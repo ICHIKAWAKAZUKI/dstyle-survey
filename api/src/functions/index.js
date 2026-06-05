@@ -366,7 +366,7 @@ app.http('responsecounts', {
 });
 
 // ----------------------------------------------------
-// 🎨 【テナント設定】ロゴ・背景色
+// 🎨 【デザイン設定】テナント共通 & アンケートごと
 // ----------------------------------------------------
 app.http('tenantsettings', {
     methods: ['GET', 'POST'],
@@ -378,12 +378,21 @@ app.http('tenantsettings', {
 
             if (request.method === 'GET') {
                 const tenant = url.searchParams.get('tenant');
+                const surveyId = url.searchParams.get('surveyId');
                 if (!tenant) return { status: 400, headers: { 'Content-Type': 'application/json' }, jsonBody: { error: 'tenant は必須です' } };
+                // アンケート個別設定を取得（なければテナント共通設定を返す）
+                if (surveyId) {
+                    try {
+                        const { resource } = await container.item('design_' + surveyId, tenant).read();
+                        if (resource) return { status: 200, headers: { 'Content-Type': 'application/json' }, jsonBody: { ...resource, _source: 'survey' } };
+                    } catch (e) {}
+                }
+                // テナント共通設定
                 try {
                     const { resource } = await container.item('settings_' + tenant, tenant).read();
-                    return { status: 200, headers: { 'Content-Type': 'application/json' }, jsonBody: resource || {} };
+                    return { status: 200, headers: { 'Content-Type': 'application/json' }, jsonBody: { ...(resource || {}), _source: 'tenant' } };
                 } catch (e) {
-                    return { status: 200, headers: { 'Content-Type': 'application/json' }, jsonBody: {} };
+                    return { status: 200, headers: { 'Content-Type': 'application/json' }, jsonBody: { _source: 'none' } };
                 }
             }
 
@@ -391,17 +400,21 @@ app.http('tenantsettings', {
                 const token = request.headers.get('x-admin-token');
                 if (!await verifyToken(token)) return { status: 401, headers: { 'Content-Type': 'application/json' }, jsonBody: { error: '認証が必要です' } };
                 const body = await request.json().catch(() => ({}));
-                const { tenant, logoBase64, logoName, headerColor } = body;
+                const { tenant, surveyId, logoBase64, logoName, headerColor, bgColor, bgType } = body;
                 if (!tenant) return { status: 400, headers: { 'Content-Type': 'application/json' }, jsonBody: { error: 'tenant は必須です' } };
-                const existing = await container.item('settings_' + tenant, tenant).read().then(r => r.resource || {}).catch(() => ({}));
+
+                const id = surveyId ? 'design_' + surveyId : 'settings_' + tenant;
+                const existing = await container.item(id, tenant).read().then(r => r.resource || {}).catch(() => ({}));
                 const updated = {
                     ...existing,
-                    id: 'settings_' + tenant,
-                    docType: 'tenant_settings',
+                    id,
+                    docType: surveyId ? 'survey_design' : 'tenant_settings',
                     tenant,
                     logoBase64: logoBase64 !== undefined ? logoBase64 : (existing.logoBase64 || ''),
                     logoName: logoName !== undefined ? logoName : (existing.logoName || ''),
                     headerColor: headerColor !== undefined ? headerColor : (existing.headerColor || ''),
+                    bgColor: bgColor !== undefined ? bgColor : (existing.bgColor || ''),
+                    bgType: bgType !== undefined ? bgType : (existing.bgType || 'solid'),
                     updatedAt: new Date().toISOString()
                 };
                 await container.items.upsert(updated);

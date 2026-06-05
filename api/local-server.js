@@ -237,33 +237,43 @@ app.post('/api/responsecounts', async (req, res) => {
 
 
 // ----------------------------------------------------
-// 🎨 テナント設定（ロゴ・背景色）
+// 🎨 デザイン設定（テナント共通 & アンケートごと）
 // ----------------------------------------------------
 app.get('/api/tenantsettings', async (req, res) => {
-    const { tenant } = req.query;
+    const { tenant, surveyId } = req.query;
     if (!tenant) return res.status(400).json({ error: 'tenant は必須です' });
     try {
         const container = await getContainer();
-        const { resource } = await container.item('settings_' + tenant, tenant).read();
-        return res.json(resource || {});
+        if (surveyId) {
+            try {
+                const { resource } = await container.item('design_' + surveyId, tenant).read();
+                if (resource) return res.json({ ...resource, _source: 'survey' });
+            } catch (e) {}
+        }
+        try {
+            const { resource } = await container.item('settings_' + tenant, tenant).read();
+            return res.json({ ...(resource || {}), _source: 'tenant' });
+        } catch (e) { return res.json({ _source: 'none' }); }
     } catch (e) { return res.json({}); }
 });
 
 app.post('/api/tenantsettings', async (req, res) => {
     if (!await verifyToken(req.headers['x-admin-token'])) return res.status(401).json({ error: '認証が必要です' });
-    const { tenant, logoBase64, logoName, headerColor } = req.body;
+    const { tenant, surveyId, logoBase64, logoName, headerColor, bgColor, bgType } = req.body;
     if (!tenant) return res.status(400).json({ error: 'tenant は必須です' });
     try {
         const container = await getContainer();
-        const existing = await container.item('settings_' + tenant, tenant).read().then(r => r.resource || {}).catch(() => ({}));
+        const id = surveyId ? 'design_' + surveyId : 'settings_' + tenant;
+        const existing = await container.item(id, tenant).read().then(r => r.resource || {}).catch(() => ({}));
         const updated = {
-            ...existing,
-            id: 'settings_' + tenant,
-            docType: 'tenant_settings',
+            ...existing, id,
+            docType: surveyId ? 'survey_design' : 'tenant_settings',
             tenant,
             logoBase64: logoBase64 !== undefined ? logoBase64 : (existing.logoBase64 || ''),
             logoName: logoName !== undefined ? logoName : (existing.logoName || ''),
             headerColor: headerColor !== undefined ? headerColor : (existing.headerColor || ''),
+            bgColor: bgColor !== undefined ? bgColor : (existing.bgColor || ''),
+            bgType: bgType !== undefined ? bgType : (existing.bgType || 'solid'),
             updatedAt: new Date().toISOString()
         };
         await container.items.upsert(updated);

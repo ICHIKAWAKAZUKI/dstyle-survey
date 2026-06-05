@@ -275,6 +275,12 @@
     document.getElementById('surveyHeader').style.background = headerColor;
     document.getElementById('surveyTitle').textContent = survey.title;
     document.title = survey.title;
+    // 背景色・グラデーション適用
+    if (settings && settings.bgColor) {
+      document.body.style.background = settings.bgColor;
+      document.body.style.minHeight = '100vh';
+    }
+    // ロゴ表示
     if (settings && settings.logoBase64) {
       var logoEl = document.createElement('img');
       logoEl.src = settings.logoBase64;
@@ -300,7 +306,7 @@
       var [surveyRes, periodRes, settingsRes] = await Promise.all([
         fetch(BASE_URL + '/api/surveys?tenant=' + TENANT + '&id=' + SURVEY_ID),
         fetch(BASE_URL + '/api/period?surveyId=' + SURVEY_ID),
-        fetch(BASE_URL + '/api/tenantsettings?tenant=' + TENANT)
+        fetch(BASE_URL + '/api/tenantsettings?tenant=' + TENANT + '&surveyId=' + SURVEY_ID)
       ]);
 
       if (!surveyRes.ok) throw new Error('アンケートが見つかりません');

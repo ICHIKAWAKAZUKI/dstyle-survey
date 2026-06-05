@@ -124,6 +124,14 @@
     .status-msg.error { background: #fce8e6; color: #c62828; display: block; }
     .qr-box { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 16px; }
     .logo-preview { max-width: 200px; max-height: 80px; object-fit: contain; border: 1px solid #ddd; border-radius: 8px; padding: 8px; background: white; }
+    .bg-preset-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 8px; }
+    .bg-preset { border-radius: 10px; height: 64px; cursor: pointer; border: 3px solid transparent; transition: all 0.2s; display: flex; align-items: flex-end; padding: 6px 8px; }
+    .bg-preset:hover { transform: scale(1.04); }
+    .bg-preset.selected { border-color: #333; box-shadow: 0 0 0 2px #333; }
+    .bg-preset-label { font-size: 10px; font-weight: bold; color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+    .design-scope-tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+    .scope-btn { padding: 7px 16px; border: 1.5px solid #ddd; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; background: white; color: #888; transition: all 0.2s; }
+    .scope-btn.active { background: #4A5D4E; color: white; border-color: #4A5D4E; }
     .logo-upload-area { border: 2px dashed #ddd; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; background: #fafafa; transition: all 0.2s; }
     .logo-upload-area:hover { border-color: #4A5D4E; background: #f0f4f0; }
     .color-swatch { display: inline-flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
@@ -218,7 +226,16 @@
         <!-- ★ デザイン設定 -->
         <div class="panel">
           <h2>🎨 デザイン設定</h2>
+
+          <!-- スコープ切り替え -->
+          <div class="design-scope-tabs">
+            <button class="scope-btn active" id="scopeBtnSurvey" onclick="switchDesignScope('survey')">📋 このアンケート専用</button>
+            <button class="scope-btn" id="scopeBtnTenant" onclick="switchDesignScope('tenant')">🌿 テナント共通（デフォルト）</button>
+          </div>
+          <p id="designScopeNote" style="font-size:12px;color:#888;margin-bottom:16px">このアンケートだけに適用されるデザインを設定します。設定がない場合はテナント共通設定が使われます。</p>
+
           <div class="builder-form">
+            <!-- ロゴ -->
             <div class="form-group">
               <label>ロゴ画像</label>
               <div id="logoPreviewWrap" style="margin-bottom:8px;display:none">
@@ -227,29 +244,77 @@
               </div>
               <div class="logo-upload-area" onclick="document.getElementById('logoFileInput').click()">
                 <div style="font-size:24px;margin-bottom:8px">🖼️</div>
-                <div style="font-size:13px;color:#888">クリックして画像を選択<br>PNG・JPG・SVG（推奨サイズ：横400px以内）</div>
+                <div style="font-size:13px;color:#888">クリックして画像を選択<br>PNG・JPG・SVG（推奨サイズ：横400px以内・500KB以内）</div>
               </div>
               <input type="file" id="logoFileInput" accept="image/*" style="display:none" onchange="onLogoSelected(event)">
             </div>
+
+            <!-- ヘッダー色 -->
             <div class="form-group">
               <label>ヘッダー背景色</label>
               <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
                 <input type="color" id="headerColorPicker" value="#4A5D4E" style="width:48px;height:48px;border:none;border-radius:8px;cursor:pointer;padding:2px">
                 <div class="color-swatch" id="colorSwatches">
-                  <div class="color-chip" style="background:#4A5D4E" onclick="setColor('#4A5D4E')" title="グリーン（デフォルト）"></div>
-                  <div class="color-chip" style="background:#2C3E50" onclick="setColor('#2C3E50')" title="ネイビー"></div>
-                  <div class="color-chip" style="background:#7B4F6E" onclick="setColor('#7B4F6E')" title="パープル"></div>
-                  <div class="color-chip" style="background:#2980B9" onclick="setColor('#2980B9')" title="ブルー"></div>
-                  <div class="color-chip" style="background:#E74C3C" onclick="setColor('#E74C3C')" title="レッド"></div>
-                  <div class="color-chip" style="background:#D35400" onclick="setColor('#D35400')" title="オレンジ"></div>
-                  <div class="color-chip" style="background:#8E44AD" onclick="setColor('#8E44AD')" title="バイオレット"></div>
-                  <div class="color-chip" style="background:#1ABC9C" onclick="setColor('#1ABC9C')" title="ターコイズ"></div>
+                  <div class="color-chip" style="background:#4A5D4E" onclick="setColor('#4A5D4E')" title="フォレストグリーン"></div>
+                  <div class="color-chip" style="background:#2C3E50" onclick="setColor('#2C3E50')" title="ミッドナイトブルー"></div>
+                  <div class="color-chip" style="background:#7B4F6E" onclick="setColor('#7B4F6E')" title="ワインパープル"></div>
+                  <div class="color-chip" style="background:#2980B9" onclick="setColor('#2980B9')" title="オーシャンブルー"></div>
+                  <div class="color-chip" style="background:#E74C3C" onclick="setColor('#E74C3C')" title="コーラルレッド"></div>
+                  <div class="color-chip" style="background:#D35400" onclick="setColor('#D35400')" title="テラコッタ"></div>
+                  <div class="color-chip" style="background:#8E44AD" onclick="setColor('#8E44AD')" title="ロイヤルバイオレット"></div>
+                  <div class="color-chip" style="background:#1ABC9C" onclick="setColor('#1ABC9C')" title="エメラルド"></div>
                 </div>
               </div>
-              <div style="margin-top:8px;font-size:12px;color:#888" id="colorPreviewLabel">現在の色：<span id="colorHexLabel">#4A5D4E</span></div>
+              <div style="margin-top:8px;font-size:12px;color:#888">現在の色：<span id="colorHexLabel" style="font-weight:bold">#4A5D4E</span></div>
             </div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap">
+
+            <!-- 背景色プリセット -->
+            <div class="form-group">
+              <label>ページ背景色</label>
+              <p style="font-size:12px;color:#888;margin-bottom:8px">アンケート画面全体の背景を設定します。</p>
+              <div class="bg-preset-grid" id="bgPresetGrid">
+                <div class="bg-preset selected" style="background:#F5F7F5" data-bg="#F5F7F5" data-type="solid" onclick="selectBg(this)">
+                  <span class="bg-preset-label" style="color:#333;text-shadow:none">シンプルグリーン</span>
+                </div>
+                <div class="bg-preset" style="background:linear-gradient(135deg,#E8F5F0 0%,#F0F8FF 100%)" data-bg="linear-gradient(135deg,#E8F5F0 0%,#F0F8FF 100%)" data-type="gradient" onclick="selectBg(this)">
+                  <span class="bg-preset-label" style="color:#444;text-shadow:none">ミントフロスト</span>
+                </div>
+                <div class="bg-preset" style="background:linear-gradient(135deg,#FFF0F5 0%,#F5F0FF 100%)" data-bg="linear-gradient(135deg,#FFF0F5 0%,#F5F0FF 100%)" data-type="gradient" onclick="selectBg(this)">
+                  <span class="bg-preset-label" style="color:#444;text-shadow:none">ローズラベンダー</span>
+                </div>
+                <div class="bg-preset" style="background:linear-gradient(135deg,#FFF8E8 0%,#FFF0F0 100%)" data-bg="linear-gradient(135deg,#FFF8E8 0%,#FFF0F0 100%)" data-type="gradient" onclick="selectBg(this)">
+                  <span class="bg-preset-label" style="color:#444;text-shadow:none">サンセットピーチ</span>
+                </div>
+                <div class="bg-preset" style="background:linear-gradient(135deg,#E8F4FD 0%,#EAF5FB 100%)" data-bg="linear-gradient(135deg,#E8F4FD 0%,#EAF5FB 100%)" data-type="gradient" onclick="selectBg(this)">
+                  <span class="bg-preset-label" style="color:#444;text-shadow:none">スカイブルー</span>
+                </div>
+                <div class="bg-preset" style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)" data-bg="linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)" data-type="gradient" onclick="selectBg(this)">
+                  <span class="bg-preset-label">ディープネイビー</span>
+                </div>
+                <div class="bg-preset" style="background:linear-gradient(135deg,#0f0c29 0%,#302b63 50%,#24243e 100%)" data-bg="linear-gradient(135deg,#0f0c29 0%,#302b63 50%,#24243e 100%)" data-type="gradient" onclick="selectBg(this)">
+                  <span class="bg-preset-label">ミッドナイトパープル</span>
+                </div>
+                <div class="bg-preset" style="background:linear-gradient(135deg,#134e5e 0%,#71b280 100%)" data-bg="linear-gradient(135deg,#134e5e 0%,#71b280 100%)" data-type="gradient" onclick="selectBg(this)">
+                  <span class="bg-preset-label">フォレストオーシャン</span>
+                </div>
+                <div class="bg-preset" style="background:linear-gradient(135deg,#833ab4 0%,#fd1d1d 50%,#fcb045 100%)" data-bg="linear-gradient(135deg,#833ab4 0%,#fd1d1d 50%,#fcb045 100%)" data-type="gradient" onclick="selectBg(this)">
+                  <span class="bg-preset-label">サンセットグロー</span>
+                </div>
+                <div class="bg-preset" style="background:linear-gradient(135deg,#11998e 0%,#38ef7d 100%)" data-bg="linear-gradient(135deg,#11998e 0%,#38ef7d 100%)" data-type="gradient" onclick="selectBg(this)">
+                  <span class="bg-preset-label">エメラルドグリーン</span>
+                </div>
+                <div class="bg-preset" style="background:linear-gradient(135deg,#FC5C7D 0%,#6A3093 100%)" data-bg="linear-gradient(135deg,#FC5C7D 0%,#6A3093 100%)" data-type="gradient" onclick="selectBg(this)">
+                  <span class="bg-preset-label">チェリーブロッサム</span>
+                </div>
+                <div class="bg-preset" style="background:linear-gradient(135deg,#F7971E 0%,#FFD200 100%)" data-bg="linear-gradient(135deg,#F7971E 0%,#FFD200 100%)" data-type="gradient" onclick="selectBg(this)">
+                  <span class="bg-preset-label">ゴールデンサン</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
               <button class="btn btn-primary" onclick="saveDesignSettings()">💾 デザインを保存</button>
+              <button class="btn btn-secondary" onclick="resetDesignSettings()" id="resetDesignBtn" style="display:none">🗑️ このアンケートの設定をリセット</button>
               <div class="status-msg" id="designStatus"></div>
             </div>
           </div>
@@ -907,31 +972,66 @@
 
 
   // ============================================================
-  // デザイン設定（ロゴ・背景色）
+  // デザイン設定（ロゴ・背景色・アンケートごと or テナント共通）
   // ============================================================
   var currentLogoBase64 = '';
   var currentHeaderColor = '#4A5D4E';
+  var currentBgColor = '#F5F7F5';
+  var currentBgType = 'solid';
+  var designScope = 'survey'; // 'survey' or 'tenant'
+
+  function switchDesignScope(scope) {
+    designScope = scope;
+    document.getElementById('scopeBtnSurvey').classList.toggle('active', scope === 'survey');
+    document.getElementById('scopeBtnTenant').classList.toggle('active', scope === 'tenant');
+    document.getElementById('designScopeNote').textContent = scope === 'survey'
+      ? 'このアンケートだけに適用されるデザインを設定します。設定がない場合はテナント共通設定が使われます。'
+      : 'テナント全体のデフォルトデザインを設定します。アンケート個別設定がない場合に使われます。';
+    document.getElementById('resetDesignBtn').style.display = scope === 'survey' ? '' : 'none';
+    fetchDesignSettings();
+  }
 
   async function fetchDesignSettings() {
     try {
-      var res = await fetch(BASE_URL + '/api/tenantsettings?tenant=' + TENANT);
+      var url = BASE_URL + '/api/tenantsettings?tenant=' + TENANT;
+      if (designScope === 'survey' && currentSurvey) url += '&surveyId=' + currentSurvey.id;
+      var res = await fetch(url);
       if (!res.ok) return;
       var settings = await res.json();
-      if (settings.logoBase64) {
-        currentLogoBase64 = settings.logoBase64;
-        document.getElementById('logoPreview').src = settings.logoBase64;
-        document.getElementById('logoPreviewWrap').style.display = 'block';
-      } else {
-        currentLogoBase64 = '';
-        document.getElementById('logoPreviewWrap').style.display = 'none';
-      }
-      if (settings.headerColor) {
-        currentHeaderColor = settings.headerColor;
-        document.getElementById('headerColorPicker').value = settings.headerColor;
-        document.getElementById('colorHexLabel').textContent = settings.headerColor;
-        updateColorChips(settings.headerColor);
-      }
+      applyDesignToUI(settings);
     } catch(e) {}
+  }
+
+  function applyDesignToUI(settings) {
+    if (settings.logoBase64) {
+      currentLogoBase64 = settings.logoBase64;
+      document.getElementById('logoPreview').src = settings.logoBase64;
+      document.getElementById('logoPreviewWrap').style.display = 'block';
+    } else {
+      currentLogoBase64 = '';
+      document.getElementById('logoPreviewWrap').style.display = 'none';
+    }
+    var hc = settings.headerColor || '#4A5D4E';
+    currentHeaderColor = hc;
+    document.getElementById('headerColorPicker').value = hc;
+    document.getElementById('colorHexLabel').textContent = hc;
+    updateColorChips(hc);
+    var bg = settings.bgColor || '#F5F7F5';
+    currentBgColor = bg;
+    currentBgType = settings.bgType || 'solid';
+    updateBgPresetSelection(bg);
+  }
+
+  function selectBg(el) {
+    currentBgColor = el.dataset.bg;
+    currentBgType = el.dataset.type;
+    updateBgPresetSelection(currentBgColor);
+  }
+
+  function updateBgPresetSelection(bg) {
+    document.querySelectorAll('.bg-preset').forEach(function(el) {
+      el.classList.toggle('selected', el.dataset.bg === bg);
+    });
   }
 
   function onLogoSelected(event) {
@@ -963,8 +1063,7 @@
 
   function updateColorChips(color) {
     document.querySelectorAll('.color-chip').forEach(function(chip) {
-      chip.classList.toggle('selected', chip.style.background.toUpperCase() === color.toUpperCase() ||
-        rgbToHex(chip.style.background).toUpperCase() === color.toUpperCase());
+      chip.classList.toggle('selected', rgbToHex(chip.style.background).toUpperCase() === color.toUpperCase());
     });
   }
 
@@ -981,15 +1080,28 @@
   });
 
   async function saveDesignSettings() {
+    var surveyId = (designScope === 'survey' && currentSurvey) ? currentSurvey.id : null;
     try {
       var res = await apiFetch(BASE_URL + '/api/tenantsettings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenant: TENANT, logoBase64: currentLogoBase64, headerColor: currentHeaderColor })
+        body: JSON.stringify({ tenant: TENANT, surveyId: surveyId, logoBase64: currentLogoBase64, headerColor: currentHeaderColor, bgColor: currentBgColor, bgType: currentBgType })
       });
       if (res.ok) { showStatus('designStatus', '✅ 保存しました', 'success'); }
       else { showStatus('designStatus', '❌ 保存失敗', 'error'); }
     } catch(e) { showStatus('designStatus', '❌ エラー: ' + e.message, 'error'); }
+  }
+
+  async function resetDesignSettings() {
+    if (!currentSurvey || !confirm('このアンケートの個別デザイン設定をリセットしますか？テナント共通設定が使われます。')) return;
+    try {
+      var res = await apiFetch(BASE_URL + '/api/tenantsettings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant: TENANT, surveyId: currentSurvey.id, logoBase64: '', headerColor: '', bgColor: '', bgType: 'solid' })
+      });
+      if (res.ok) { applyDesignToUI({}); showStatus('designStatus', '✅ リセットしました', 'success'); }
+    } catch(e) { showStatus('designStatus', '❌ エラー', 'error'); }
   }
 
   document.addEventListener('keydown', function(e) {
