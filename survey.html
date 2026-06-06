@@ -18,15 +18,34 @@
     .section-label { font-weight: bold; font-size: 16px; color: #4A5D4E; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
     .section-label .num { background: #4A5D4E; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
     .required { color: #c0392b; font-size: 12px; margin-left: 4px; }
+    /* プルダウン専用スタイル */
+    .select-wrap { position: relative; }
+    .select-wrap::after { content: "▼"; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: #4A5D4E; font-size: 12px; pointer-events: none; }
+    .select-wrap select { padding-right: 36px; -webkit-appearance: none; appearance: none; }
+
+    /* 星評価 */
+    .star-group { display: flex; gap: 8px; flex-direction: row-reverse; justify-content: flex-end; }
+    .star-group input[type="radio"] { display: none; }
+    .star-group label { font-size: 36px; cursor: pointer; color: #ddd; transition: color 0.15s; line-height: 1; }
+    .star-group input[type="radio"]:checked ~ label { color: #F39C12; }
+    .star-group label:hover,
+    .star-group label:hover ~ label { color: #F39C12; }
+    .star-selected-label { font-size: 13px; color: #F39C12; margin-top: 6px; font-weight: bold; min-height: 20px; }
+
+    /* 数値 */
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+    input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-inner-spin-button,
+
     input[type="text"], select, textarea { width: 100%; padding: 14px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 16px; background: #fafafa; -webkit-appearance: none; appearance: none; transition: border-color 0.2s; }
-    input[type="text"]:focus, select:focus, textarea:focus { border-color: #4A5D4E; background: #fff; outline: none; }
+    input[type="text"]:focus, input[type="tel"]:focus, input[type="email"]:focus, input[type="number"]:focus, input[type="date"]:focus, select:focus, textarea:focus { border-color: #4A5D4E; background: #fff; outline: none; }
     textarea { height: 110px; resize: vertical; }
     .radio-group { display: flex; flex-direction: column; gap: 10px; }
     .radio-label { display: flex; align-items: center; padding: 14px 16px; border: 1.5px solid #ddd; border-radius: 8px; cursor: pointer; font-size: 15px; transition: all 0.2s; background: #fafafa; }
     .radio-label:hover { border-color: #4A5D4E; background: #f0f4f0; }
     .radio-label input[type="radio"], .radio-label input[type="checkbox"] { margin-right: 12px; width: 20px; height: 20px; accent-color: #4A5D4E; flex-shrink: 0; }
     .radio-label.selected { border-color: #4A5D4E; background: #eef3ee; font-weight: bold; }
-    .submit-btn { width: 100%; padding: 18px; background: #4A5D4E; color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 8px; box-shadow: 0 4px 12px rgba(74,93,78,0.3); -webkit-appearance: none; }
+    .submit-btn { width: 100%; padding: 18px; background: #4A5D4E; color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 8px; box-shadow: 0 4px 12px rgba(74,93,78,0.3); -webkit-appearance: none; appearance: none; }
     .submit-btn:hover { background: #3b4d3f; }
     .submit-btn:disabled { background: #999; cursor: not-allowed; }
     .error-msg { margin-top: 20px; padding: 16px; border-radius: 8px; font-weight: bold; text-align: center; display: none; font-size: 16px; background: #fce8e6; color: #c5221f; border: 1px solid #f5c6c2; }
@@ -157,8 +176,33 @@
       if (q.required) html += '<span class="required">※必須</span>';
       html += '</div>';
       if (q.type === 'text') {
-        html += '<input type="text" id="q_' + q.id + '" placeholder="' + (q.placeholder || '') + '">';
+        html += '<input type="text" id="q_' + esc(q.id) + '" placeholder="' + esc(q.placeholder || '') + '">';
         if (q.required) html += '<div class="field-error-msg">この項目は必須です</div>';
+      } else if (q.type === 'tel') {
+        html += '<input type="tel" id="q_' + esc(q.id) + '" placeholder="' + esc(q.placeholder || '例）090-1234-5678') + '" pattern="[0-9\-+()\s]*">';
+        if (q.required) html += '<div class="field-error-msg">この項目は必須です</div>';
+      } else if (q.type === 'email') {
+        html += '<input type="email" id="q_' + esc(q.id) + '" placeholder="' + esc(q.placeholder || '例）example@email.com') + '">';
+        if (q.required) html += '<div class="field-error-msg">この項目は必須です</div>';
+      } else if (q.type === 'number') {
+        var minAttr = q.min !== undefined ? ' min="' + q.min + '"' : '';
+        var maxAttr = q.max !== undefined ? ' max="' + q.max + '"' : '';
+        html += '<input type="number" id="q_' + esc(q.id) + '" placeholder="' + esc(q.placeholder || '') + '"' + minAttr + maxAttr + '>';
+        if (q.required) html += '<div class="field-error-msg">この項目は必須です</div>';
+      } else if (q.type === 'date') {
+        html += '<input type="date" id="q_' + esc(q.id) + '">';
+        if (q.required) html += '<div class="field-error-msg">この項目は必須です</div>';
+      } else if (q.type === 'rating') {
+        var maxStars = q.maxStars || 5;
+        var starLabels = q.starLabels || ['', '悪い', 'やや悪い', '普通', '良い', '大変良い', '', '', '', '', ''];
+        html += '<div class="star-group" id="group_' + esc(q.id) + '">';
+        for (var si = maxStars; si >= 1; si--) {
+          html += '<input type="radio" name="q_' + esc(q.id) + '" id="star_' + esc(q.id) + '_' + si + '" value="' + si + '">' ;
+          html += '<label for="star_' + esc(q.id) + '_' + si + '">★</label>';
+        }
+        html += '</div>';
+        html += '<div class="star-selected-label" id="starLabel_' + esc(q.id) + '"></div>';
+        if (q.required) html += '<div class="field-error-msg">評価を選択してください</div>';
       } else if (q.type === 'textarea') {
         html += '<textarea id="q_' + q.id + '" placeholder="' + (q.placeholder || '') + '"></textarea>';
         if (q.required) html += '<div class="field-error-msg">この項目は必須です</div>';
@@ -199,6 +243,7 @@
       });
     });
 
+    bindStarEvents();
     form.addEventListener('keydown', function(e) { if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') e.preventDefault(); });
 
     form.addEventListener('submit', async function(e) {
@@ -217,12 +262,15 @@
         if (!q.required) return;
         var section = document.getElementById('section_' + q.id);
         var isEmpty = false;
-        if (q.type === 'text' || q.type === 'textarea') {
+        if (q.type === 'text' || q.type === 'textarea' || q.type === 'tel' || q.type === 'email' || q.type === 'number' || q.type === 'date') {
           var el = document.getElementById('q_' + q.id);
           if (!el || !el.value.trim()) isEmpty = true;
         } else if (q.type === 'select') {
           var el = document.getElementById('q_' + q.id);
           if (!el || !el.value) isEmpty = true;
+        } else if (q.type === 'rating') {
+          var checked = document.querySelector('input[name="q_' + q.id + '"]:checked');
+          if (!checked) isEmpty = true;
         } else if (q.type === 'radio') {
           var checked = document.querySelector('input[name="q_' + q.id + '"]:checked');
           if (!checked) isEmpty = true;
@@ -242,8 +290,12 @@
 
       var answers = {};
       survey.questions.forEach(function(q) {
-        if (q.type === 'text' || q.type === 'textarea' || q.type === 'select') {
+        if (q.type === 'text' || q.type === 'textarea' || q.type === 'select' ||
+            q.type === 'tel' || q.type === 'email' || q.type === 'number' || q.type === 'date') {
           answers[q.id] = document.getElementById('q_' + q.id).value;
+        } else if (q.type === 'rating') {
+          var checked = document.querySelector('input[name="q_' + q.id + '"]:checked');
+          answers[q.id] = checked ? checked.value + '点' : '未評価';
         } else if (q.type === 'radio') {
           var checked = document.querySelector('input[name="q_' + q.id + '"]:checked');
           answers[q.id] = checked ? checked.value : '未選択';
@@ -306,6 +358,24 @@
     var badge = document.getElementById('periodBadge');
     if (endDate && badge) badge.textContent = '📅 受付期間：' + formatDate(endDate) + ' まで';
     buildForm(survey);
+  }
+
+  function updateStarLabel(qId, val, label) {
+    var el = document.getElementById('starLabel_' + qId);
+    if (el) el.textContent = val + '点' + (label ? '（' + label + '）' : '');
+  }
+
+  // 星評価のイベントリスナー登録（buildForm後に呼ぶ）
+  function bindStarEvents() {
+    document.querySelectorAll('.star-group').forEach(function(group) {
+      var qId = group.dataset.qid;
+      group.querySelectorAll('input[type="radio"]').forEach(function(input) {
+        input.addEventListener('change', function() {
+          var label = this.dataset.label || '';
+          updateStarLabel(qId, this.value, label);
+        });
+      });
+    });
   }
 
   async function init() {
