@@ -725,6 +725,7 @@
         '<button class="btn btn-danger btn-sm" onclick="deleteSurvey(\'' + s.id + '\')">削除</button>' +
         '</div></div>';
     }).join('');
+    setTimeout(loadResponseCounts, 200);
   }
 
   async function loadResponseCounts() {
