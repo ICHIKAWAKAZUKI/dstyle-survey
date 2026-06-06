@@ -73,6 +73,18 @@
 </div>
 
 <script>
+
+  // XSS対策：文字列をエスケープする
+  function esc(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   var params = new URLSearchParams(location.search);
   var SURVEY_ID = params.get('id');
   var TENANT    = params.get('tenant');
