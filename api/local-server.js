@@ -230,7 +230,7 @@ app.get('/api/accesslog', async (req, res) => {
 });
 
 // ----------------------------------------------------
-// 回答数サマリー
+// 回答数サマリー（GROUP BY非依存）
 // ----------------------------------------------------
 app.post('/api/responsecounts', async (req, res) => {
     if (!await verifyToken(req.headers['x-admin-token'])) return res.status(401).json({ error: '認証が必要です' });
@@ -241,10 +241,10 @@ app.post('/api/responsecounts', async (req, res) => {
         const counts = {};
         surveyIds.forEach(id => counts[id] = 0);
         const { resources } = await container.items.query({
-            query: "SELECT c.surveyId, COUNT(1) as cnt FROM c WHERE c.tenant = @tenant AND c.docType = 'survey_response' AND ARRAY_CONTAINS(@ids, c.surveyId) GROUP BY c.surveyId",
+            query: "SELECT c.surveyId FROM c WHERE c.tenant = @tenant AND c.docType = 'survey_response' AND ARRAY_CONTAINS(@ids, c.surveyId)",
             parameters: [{ name: "@tenant", value: tenant }, { name: "@ids", value: surveyIds }]
         }).fetchAll();
-        resources.forEach(r => { counts[r.surveyId] = r.cnt; });
+        resources.forEach(r => { if (counts[r.surveyId] !== undefined) counts[r.surveyId]++; });
         return res.json(counts);
     } catch (e) { return res.json({}); }
 });

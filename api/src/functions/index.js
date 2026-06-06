@@ -349,7 +349,7 @@ app.http('accesslog', {
 });
 
 // ----------------------------------------------------
-// 📊 【回答数サマリー】
+// 📊 【回答数サマリー】個別カウント方式（GROUP BY非依存）
 // ----------------------------------------------------
 app.http('responsecounts', {
     methods: ['POST'],
@@ -367,12 +367,16 @@ app.http('responsecounts', {
             const counts = {};
             surveyIds.forEach(id => counts[id] = 0);
 
+            // GROUP BYを使わず全回答を取得してJS側でカウント
             const { resources } = await container.items.query({
-                query: "SELECT c.surveyId, COUNT(1) as cnt FROM c WHERE c.tenant = @tenant AND c.docType = 'survey_response' AND ARRAY_CONTAINS(@ids, c.surveyId) GROUP BY c.surveyId",
+                query: "SELECT c.surveyId FROM c WHERE c.tenant = @tenant AND c.docType = 'survey_response' AND ARRAY_CONTAINS(@ids, c.surveyId)",
                 parameters: [{ name: "@tenant", value: tenant }, { name: "@ids", value: surveyIds }]
             }).fetchAll();
 
-            resources.forEach(r => { counts[r.surveyId] = r.cnt; });
+            resources.forEach(r => {
+                if (counts[r.surveyId] !== undefined) counts[r.surveyId]++;
+            });
+
             return { status: 200, headers: { 'Content-Type': 'application/json' }, jsonBody: counts };
         } catch (e) {
             return { status: 200, headers: { 'Content-Type': 'application/json' }, jsonBody: {} };
