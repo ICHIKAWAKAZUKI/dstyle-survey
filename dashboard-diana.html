@@ -58,6 +58,8 @@
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-group label { font-size: 13px; font-weight: bold; color: #555; }
     .form-group input, .form-group textarea, .form-group select { padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 15px; background: #fafafa; -webkit-appearance: none; appearance: none; }
+    .select-wrap { position: relative; display: block; }
+    .select-wrap::after { content: "▼"; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: #7B4F6E; font-size: 11px; pointer-events: none; }
     .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: #7B4F6E; outline: none; background: #fff; }
     .form-group textarea { height: 80px; resize: vertical; }
     .questions-list { display: flex; flex-direction: column; gap: 12px; }
@@ -345,6 +347,11 @@
                 <option value="radio">ラジオボタン（単一選択）</option>
                 <option value="checkbox">チェックボックス（複数選択）</option>
                 <option value="select">プルダウン</option>
+                <option value="rating">★ 星評価</option>
+                <option value="number">🔢 数値入力</option>
+                <option value="tel">📞 電話番号</option>
+                <option value="email">📧 メールアドレス</option>
+                <option value="date">📅 日付選択</option>
               </select>
               <button class="btn btn-primary" onclick="openAddQuestion()">＋ 追加</button>
             </div>
@@ -396,6 +403,11 @@
           <option value="radio">ラジオボタン（単一選択）</option>
           <option value="checkbox">チェックボックス（複数選択）</option>
           <option value="select">プルダウン</option>
+          <option value="rating">★ 星評価</option>
+          <option value="number">🔢 数値入力</option>
+          <option value="tel">📞 電話番号</option>
+          <option value="email">📧 メールアドレス</option>
+          <option value="date">📅 日付選択</option>
         </select>
       </div>
       <div class="form-group" id="placeholderGroup"><label>記入例（任意）</label><input type="text" id="qPlaceholder" placeholder="例）山田 花子"></div>
@@ -409,6 +421,21 @@
         <label>選択肢</label>
         <div class="options-input-area" id="optionsList"></div>
         <button class="add-option-btn" onclick="addOptionRow()">＋ 選択肢を追加</button>
+      </div>
+      <div class="form-group" id="ratingGroup" style="display:none">
+        <label>最大評価数</label>
+        <select id="qMaxStars" style="-webkit-appearance:auto;appearance:auto">
+          <option value="5">5段階（★★★★★）</option>
+          <option value="10">10段階</option>
+        </select>
+      </div>
+      <div class="form-group" id="numberRangeGroup" style="display:none">
+        <label>入力範囲（任意）</label>
+        <div style="display:flex;gap:12px;align-items:center">
+          <input type="number" id="qMin" placeholder="最小値（例：0）" style="flex:1">
+          <span style="color:#888">〜</span>
+          <input type="number" id="qMax" placeholder="最大値（例：100）" style="flex:1">
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -604,7 +631,7 @@
     var list = document.getElementById('questionsList');
     var questions = currentSurvey.questions || [];
     if (questions.length === 0) { list.innerHTML = '<div class="empty">質問がありません。下の「＋ 追加」から追加してください。</div>'; return; }
-    var typeLabels = { text: 'テキスト', textarea: '長文', radio: 'ラジオ', checkbox: 'チェック', select: 'プルダウン' };
+    var typeLabels = { text: 'テキスト', textarea: '長文', radio: 'ラジオ', checkbox: 'チェック', select: 'プルダウン', rating: '★評価', number: '数値', tel: '電話番号', email: 'メール', date: '日付' };
     list.innerHTML = questions.map(function(q, i) {
       var opts = (q.options || []).map(function(o) { return '<span class="option-tag">' + o + '</span>'; }).join('');
       return '<div class="question-item"><div class="question-item-header">' +
@@ -667,14 +694,22 @@
     onQTypeChange();
     document.getElementById('optionsList').innerHTML = '';
     (q.options || ['', '']).forEach(function(opt) { addOptionRow(opt); });
+    if (q.type === 'rating') document.getElementById('qMaxStars').value = q.maxStars || 5;
+    if (q.type === 'number') {
+      document.getElementById('qMin').value = q.min !== undefined ? q.min : '';
+      document.getElementById('qMax').value = q.max !== undefined ? q.max : '';
+    }
     document.getElementById('questionModal').classList.add('show');
   }
 
   function onQTypeChange() {
     var type = document.getElementById('qType').value;
     var needsOptions = type === 'radio' || type === 'checkbox' || type === 'select';
+    var needsPlaceholder = type === 'text' || type === 'textarea' || type === 'tel' || type === 'email' || type === 'number';
     document.getElementById('optionsGroup').style.display = needsOptions ? '' : 'none';
-    document.getElementById('placeholderGroup').style.display = needsOptions ? 'none' : '';
+    document.getElementById('placeholderGroup').style.display = needsPlaceholder ? '' : 'none';
+    document.getElementById('ratingGroup').style.display = type === 'rating' ? '' : 'none';
+    document.getElementById('numberRangeGroup').style.display = type === 'number' ? '' : 'none';
   }
 
   function addOptionRow(value) {
@@ -697,6 +732,15 @@
     }
     var q = { id: 'q_' + Date.now(), label: label, type: type, required: required, options: options };
     if (placeholder) q.placeholder = placeholder;
+    if (type === 'rating') {
+      q.maxStars = parseInt(document.getElementById('qMaxStars').value) || 5;
+    }
+    if (type === 'number') {
+      var minVal = document.getElementById('qMin').value;
+      var maxVal = document.getElementById('qMax').value;
+      if (minVal !== '') q.min = parseInt(minVal);
+      if (maxVal !== '') q.max = parseInt(maxVal);
+    }
     if (!currentSurvey.questions) currentSurvey.questions = [];
     if (editingQuestionIndex >= 0) { q.id = currentSurvey.questions[editingQuestionIndex].id; currentSurvey.questions[editingQuestionIndex] = q; }
     else { currentSurvey.questions.push(q); }
