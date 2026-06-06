@@ -229,6 +229,7 @@ input[type="number"]::-webkit-inner-spin-button,
       html += '</div>';
       if (i === survey.questions.length - 2) html += '<hr class="divider">';
     });
+    html += '<div class="privacy-notice"><p>📋 <strong>個人情報の取り扱いについて</strong></p><p>ご入力いただいた個人情報は、サービス向上およびお客様へのご連絡の目的にのみ使用し、第三者への提供は行いません。</p></div>';
     html += '<button type="submit" class="submit-btn" id="submitBtn" style="background:' + color + ';box-shadow:0 4px 12px rgba(0,0,0,0.2)">アンケートを送信する 📩</button>';
     form.innerHTML = html;
 
