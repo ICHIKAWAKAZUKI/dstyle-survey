@@ -209,7 +209,7 @@ input[type="number"]::-webkit-inner-spin-button,
       } else if (q.type === 'image_choice') {
         html += '<div class="image-choice-grid" id="ic_' + esc(q.id) + '">';
         (q.imageChoices || []).forEach(function(choice, ci) {
-          html += '<div class="image-choice-item" id="ic_item_' + esc(q.id) + '_' + ci + '" onclick="selectImageChoice('' + esc(q.id) + '', ' + ci + ', '' + esc(choice.label) + '')">';
+          html += '<div class="image-choice-item" id="ic_item_' + esc(q.id) + '_' + ci + '" data-qid="' + esc(q.id) + '" data-idx="' + ci + '" data-label="' + esc(choice.label) + '">';
           if (choice.imageBase64) html += '<img src="' + choice.imageBase64 + '" alt="' + esc(choice.label) + '">';
           html += '<span>' + esc(choice.label) + '</span>';
           html += '</div>';
@@ -278,6 +278,7 @@ input[type="number"]::-webkit-inner-spin-button,
     });
 
     bindStarEvents();
+    bindImageChoiceEvents();
     form.addEventListener('keydown', function(e) { if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') e.preventDefault(); });
 
     form.addEventListener('submit', async function(e) {
@@ -396,6 +397,19 @@ input[type="number"]::-webkit-inner-spin-button,
     var badge = document.getElementById('periodBadge');
     if (endDate && badge) badge.textContent = '📅 受付期間：' + formatDate(endDate) + ' まで';
     buildForm(survey, settings);
+  }
+
+  function bindImageChoiceEvents() {
+    document.querySelectorAll('.image-choice-grid').forEach(function(grid) {
+      grid.querySelectorAll('.image-choice-item').forEach(function(item) {
+        item.addEventListener('click', function() {
+          var qId = this.dataset.qid;
+          var idx = this.dataset.idx;
+          var label = this.dataset.label;
+          selectImageChoice(qId, idx, label);
+        });
+      });
+    });
   }
 
   function selectImageChoice(qId, idx, label) {
