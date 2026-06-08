@@ -1199,6 +1199,45 @@
     document.getElementById('privacyBgColorLabel').textContent = e.target.value;
   });
 
+
+  // ============================================================
+  // リッチテキストエディタ（プライバシーポリシー用）
+  // ============================================================
+  function rteCmd(cmd) {
+    document.getElementById('privacyEditor').focus();
+    document.execCommand(cmd, false, null);
+  }
+
+  function rteInsertLink() {
+    var selection = window.getSelection();
+    if (!selection || selection.isCollapsed) {
+      alert('リンクにしたいテキストを選択してから押してください');
+      return;
+    }
+    var url = prompt('リンクURLを入力してください', 'https://');
+    if (url && url !== 'https://') {
+      document.getElementById('privacyEditor').focus();
+      document.execCommand('createLink', false, url);
+      var links = document.getElementById('privacyEditor').querySelectorAll('a');
+      links.forEach(function(a) { a.target = '_blank'; a.rel = 'noopener noreferrer'; });
+    }
+  }
+
+  function rteClearLink() {
+    document.getElementById('privacyEditor').focus();
+    document.execCommand('unlink', false, null);
+  }
+
+  function rteGetHtml() {
+    var editor = document.getElementById('privacyEditor');
+    return editor ? editor.innerHTML : '';
+  }
+
+  function rteSetHtml(html) {
+    var editor = document.getElementById('privacyEditor');
+    if (editor) editor.innerHTML = html || '';
+  }
+
   async function saveDesignSettings() {
     var surveyId = (designScope === 'survey' && currentSurvey) ? currentSurvey.id : null;
     try {
