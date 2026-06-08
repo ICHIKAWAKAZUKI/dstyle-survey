@@ -169,7 +169,7 @@ input[type="number"]::-webkit-inner-spin-button,
     );
   }
 
-  function buildForm(survey) {
+  function buildForm(survey, settings) {
     var form = document.getElementById('surveyForm');
     var color = getColor();
     var html = '';
@@ -371,7 +371,7 @@ input[type="number"]::-webkit-inner-spin-button,
     if (survey.description) document.getElementById('surveyDescription').textContent = survey.description;
     var badge = document.getElementById('periodBadge');
     if (endDate && badge) badge.textContent = '📅 受付期間：' + formatDate(endDate) + ' まで';
-    buildForm(survey);
+    buildForm(survey, settings);
   }
 
   function updateStarLabel(qId, val, label) {
