@@ -1786,39 +1786,70 @@
     var list = document.getElementById('diagChoiceList');
     var resultKeys = Object.keys(currentDiag.results || {});
     var div = document.createElement('div');
-    div.style.cssText = 'background:#f9f9f9;border:1px solid #e8e8e8;border-radius:8px;padding:10px 12px;margin-bottom:8px';
-    var scoresHtml = resultKeys.length ?
-      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">' +
-      resultKeys.map(function(k) {
-        var score = (choice && choice.scores && choice.scores[k] !== undefined) ? choice.scores[k] : 0;
-        return '<div style="display:flex;align-items:center;gap:4px">' +
-          '<span style="font-size:11px;font-weight:bold;background:#4A5D4E;color:white;padding:1px 7px;border-radius:8px">' + esc(k) + '</span>' +
-          '<input type="number" value="' + score + '" min="0" max="10" data-key="' + esc(k) + '" style="width:50px;padding:3px 6px;border:1px solid #ddd;border-radius:4px;font-size:12px;text-align:center">' +
-          '<span style="font-size:11px;color:#888">点</span>' +
-        '</div>';
-      }).join('') + '</div>' :
-      '<p style="font-size:11px;color:#aaa;margin-top:6px">⚠️ 先に結果パターンを追加してください</p>';
+    div.style.cssText = 'background:#f9f9f9;border:1px solid #e8e8e8;border-radius:8px;padding:12px;margin-bottom:8px';
+    div.className = 'diag-choice-row';
+
+    // 現在選択されているresultKey
+    var selectedKey = '';
+    if (choice && choice.scores) {
+      var maxScore = 0;
+      Object.keys(choice.scores).forEach(function(k) {
+        if ((choice.scores[k] || 0) > maxScore) { maxScore = choice.scores[k]; selectedKey = k; }
+      });
+    }
+
+    var radioHtml = resultKeys.length ?
+      '<div style="margin-top:10px">' +
+        '<div style="font-size:12px;font-weight:bold;color:#555;margin-bottom:6px">この選択肢を選んだ場合、最も近い結果タイプ：</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px">' +
+        resultKeys.map(function(k) {
+          var r = currentDiag.results[k];
+          var checked = (k === selectedKey) ? 'checked' : '';
+          return '<label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border:2px solid ' + (k === selectedKey ? '#4A5D4E' : '#ddd') + ';border-radius:20px;cursor:pointer;background:' + (k === selectedKey ? '#e8f5e9' : 'white') + ';font-size:13px;transition:all 0.15s" class="diag-radio-label">' +
+            '<input type="radio" name="result_' + list.children.length + '" value="' + esc(k) + '" ' + checked + ' style="display:none" onchange="updateDiagRadioStyle(this)">' +
+            '<span style="font-weight:bold;background:#4A5D4E;color:white;padding:1px 8px;border-radius:10px;font-size:11px">' + esc(k) + '</span>' +
+            '<span>' + esc((r && r.title) || k) + '</span>' +
+          '</label>';
+        }).join('') +
+        '</div>' +
+      '</div>' :
+      '<p style="font-size:12px;color:#e74c3c;margin-top:8px;background:#fce8e6;padding:8px;border-radius:6px">⚠️ 先に結果パターンを追加してから質問を設定してください</p>';
+
     div.innerHTML =
       '<div style="display:flex;gap:8px;align-items:center">' +
-        '<input type="text" placeholder="選択肢テキスト（例：よく冷える）" value="' + esc((choice && choice.label) || '') + '" style="flex:1;padding:8px;border:1.5px solid #ddd;border-radius:6px;font-size:13px" class="diag-choice-label">' +
-        '<button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.parentElement.remove()">✕</button>' +
+        '<input type="text" placeholder="選択肢テキスト（例：よく冷える）" value="' + esc((choice && choice.label) || '') + '" style="flex:1;padding:10px;border:1.5px solid #ddd;border-radius:6px;font-size:14px" class="diag-choice-label">' +
+        '<button type="button" style="background:#e74c3c;color:white;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:16px;flex-shrink:0" onclick="this.parentElement.parentElement.remove()">✕</button>' +
       '</div>' +
-      '<div class="diag-choice-scores">' + scoresHtml + '</div>';
+      '<div class="diag-choice-scores">' + radioHtml + '</div>';
     list.appendChild(div);
+  }
+
+  function updateDiagRadioStyle(radio) {
+    // 同じname属性のラジオボタンのラベルスタイルを更新
+    var name = radio.name;
+    document.querySelectorAll('input[name="' + name + '"]').forEach(function(r) {
+      var label = r.closest('label');
+      if (label) {
+        label.style.borderColor = r.checked ? '#4A5D4E' : '#ddd';
+        label.style.background = r.checked ? '#e8f5e9' : 'white';
+      }
+    });
   }
 
   function saveDiagQuestion() {
     var text = document.getElementById('diagQText').value.trim();
     if (!text) { alert('質問文を入力してください'); return; }
-    var rows = document.getElementById('diagChoiceList').querySelectorAll('div[style*="f9f9f9"]');
+    var rows = document.getElementById('diagChoiceList').querySelectorAll('.diag-choice-row');
     var choices = [];
     rows.forEach(function(row) {
       var label = row.querySelector('.diag-choice-label').value.trim();
       if (!label) return;
+      // ラジオボタンから選択されたresultKeyを取得
+      var selectedRadio = row.querySelector('.diag-choice-scores input[type="radio"]:checked');
       var scores = {};
-      row.querySelectorAll('.diag-choice-scores input[data-key]').forEach(function(inp) {
-        scores[inp.dataset.key] = parseInt(inp.value) || 0;
-      });
+      if (selectedRadio) {
+        scores[selectedRadio.value] = 3; // 選択されたタイプに3点
+      }
       choices.push({ label: label, scores: scores });
     });
     if (choices.length < 2) { alert('選択肢を2つ以上追加してください'); return; }
