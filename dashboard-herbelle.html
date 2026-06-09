@@ -183,6 +183,7 @@
       <button class="tab-btn active" onclick="switchTab('responses')">📊 回答データ</button>
       <button class="tab-btn" onclick="switchTab('builder')">⚙️ アンケート設定</button>
       <button class="tab-btn" onclick="switchTab('surveys')">📋 アンケート管理</button>
+      <button class="tab-btn" onclick="switchTab('diagnosis')">🔮 診断管理</button>
     </div>
 
     <!-- タブ1: 回答データ -->
@@ -428,6 +429,128 @@
             <div id="qrcode"></div>
             <button class="btn btn-secondary btn-sm" onclick="downloadQR()">⬇️ QRコードをダウンロード</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- タブ4: 診断管理 -->
+    <div id="tab-diagnosis" class="tab-content">
+          <div class="panel">
+            <h2>🔮 診断設定</h2>
+            <div class="builder-form">
+              <div class="form-group">
+                <label>診断タイトル</label>
+                <input type="text" id="diagTitle" placeholder="例）よもぎ蒸し体質診断">
+              </div>
+              <div class="form-group">
+                <label>説明文（任意）</label>
+                <textarea id="diagDescription" rows="2" placeholder="例）あなたに合ったよもぎ蒸しコースを診断します。"></textarea>
+              </div>
+              <div style="display:flex;gap:10px;align-items:center">
+                <button class="btn btn-primary" onclick="saveDiagnosis()">💾 診断設定を保存</button>
+                <div class="status-msg" id="diagStatus"></div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2>❓ 質問管理</h2>
+            <div id="diagQuestionList" style="margin-bottom:16px"></div>
+            <button class="btn btn-primary" onclick="openDiagQuestionModal()">＋ 質問を追加</button>
+          </div>
+          <div class="panel">
+            <h2>🏆 結果パターン管理</h2>
+            <p style="font-size:13px;color:#888;margin-bottom:16px">最大5パターンまで設定できます。スコアが最も高いパターンが結果として表示されます。</p>
+            <div id="diagResultList" style="margin-bottom:16px"></div>
+            <button class="btn btn-primary" id="addResultBtn" onclick="openDiagResultModal()">＋ 結果パターンを追加</button>
+          </div>
+          <div class="panel">
+            <h2>📊 診断結果ログ</h2>
+            <div class="summary" id="diagLogSummary"></div>
+            <div style="margin-top:16px">
+              <button class="btn btn-primary" onclick="fetchDiagLog()">🔄 更新</button>
+            </div>
+            <div class="table-wrap" style="margin-top:12px">
+              <div class="table-scroll">
+                <table>
+                  <thead><tr><th>日時</th><th>結果</th></tr></thead>
+                  <tbody id="diagLogBody"><tr><td colspan="2" class="loading">更新ボタンを押すと読み込みます</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2>🔗 診断ページURL</h2>
+            <div id="diagUrlBox" style="background:#f0f4f0;padding:12px;border-radius:8px;font-size:13px;color:#4A5D4E;word-break:break-all;margin-bottom:12px"></div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <button class="btn btn-secondary" onclick="copyDiagUrl()">📋 URLをコピー</button>
+              <button class="btn btn-primary" onclick="window.open(document.getElementById('diagUrlBox').textContent, '_blank')">🔗 診断ページを開く</button>
+            </div>
+          </div>
+    </div>
+
+    <!-- 診断質問モーダル -->
+    <div id="diagQuestionModal" class="modal-overlay" style="display:none">
+      <div class="modal-box" style="max-width:600px">
+        <h3 id="diagQModalTitle">質問を追加</h3>
+        <input type="hidden" id="diagQEditIndex" value="-1">
+        <div class="form-group">
+          <label>質問文</label>
+          <input type="text" id="diagQText" placeholder="例）最近、体が冷えやすいですか？">
+        </div>
+        <div class="form-group">
+          <label>選択肢とスコア</label>
+          <p style="font-size:12px;color:#888;margin-bottom:8px">各選択肢に結果パターンのスコアを設定します。</p>
+          <div id="diagChoiceList"></div>
+          <button class="add-option-btn" onclick="addDiagChoiceRow()">＋ 選択肢を追加</button>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <button class="btn btn-primary" onclick="saveDiagQuestion()">💾 保存</button>
+          <button class="btn btn-secondary" onclick="closeDiagQuestionModal()">キャンセル</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 診断結果モーダル -->
+    <div id="diagResultModal" class="modal-overlay" style="display:none">
+      <div class="modal-box" style="max-width:600px">
+        <h3 id="diagRModalTitle">結果パターンを追加</h3>
+        <input type="hidden" id="diagREditKey" value="">
+        <div class="form-group">
+          <label>パターンID（英数字）</label>
+          <input type="text" id="diagRKey" placeholder="例）A / B / type1" maxlength="20">
+        </div>
+        <div class="form-group">
+          <label>結果タイトル</label>
+          <input type="text" id="diagRTitle" placeholder="例）冷え性タイプ">
+        </div>
+        <div class="form-group">
+          <label>おすすめコース</label>
+          <input type="text" id="diagRCourse" placeholder="例）よもぎ蒸し 温活コース">
+        </div>
+        <div class="form-group">
+          <label>説明文</label>
+          <textarea id="diagRDescription" rows="3" placeholder="例）体の芯から温めることが大切なタイプです..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>結果画像（任意）</label>
+          <div id="diagRImgPreviewWrap" style="display:none;margin-bottom:8px">
+            <img id="diagRImgPreview" style="max-width:200px;max-height:120px;border-radius:8px;border:1px solid #ddd;object-fit:contain" src="" alt="">
+            <button class="btn btn-secondary btn-sm" style="margin-left:8px" onclick="removeDiagResultImage()">🗑️ 削除</button>
+          </div>
+          <div class="img-upload-area" onclick="document.getElementById('diagRImgInput').click()">
+            <div style="font-size:20px;margin-bottom:4px">🖼️</div>
+            <div style="font-size:12px;color:#888">クリックして画像を選択（1MB以内）</div>
+          </div>
+          <input type="file" id="diagRImgInput" accept="image/*" style="display:none" onchange="onDiagResultImageSelected(event)">
+        </div>
+        <div class="form-group">
+          <label>予約URL（任意）</label>
+          <input type="text" id="diagRBookingUrl" placeholder="例）https://example.com/booking">
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <button class="btn btn-primary" onclick="saveDiagResult()">💾 保存</button>
+          <button class="btn btn-secondary" onclick="closeDiagResultModal()">キャンセル</button>
         </div>
       </div>
     </div>
