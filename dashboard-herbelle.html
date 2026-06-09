@@ -111,6 +111,14 @@
     .loading { text-align: center; padding: 30px; color: #888; }
     .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; }
     .modal-overlay.show { display: flex; }
+    .modal-box { background: white; border-radius: 12px; padding: 0; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,0.2); overflow: hidden; }
+    .modal-box h3 { font-size: 17px; font-weight: bold; color: white; background: #4A5D4E; margin: 0; padding: 16px 24px; }
+    .modal-box .form-group { padding: 0 24px; margin-top: 16px; }
+    .modal-box > div:last-child { padding: 16px 24px 24px; border-top: 1px solid #eee; margin-top: 16px; }
+    .modal-box [style*="margin-top:16px"] { padding: 0 24px; }
+    .modal-box [style*="margin-top:20px"] { padding: 16px 24px 24px; border-top: 1px solid #eee; }
+    .modal-inner { padding: 0 24px 4px; }
+    .modal-box h3 { font-size: 18px; font-weight: bold; color: #2c3e50; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
     .modal { background: white; border-radius: 12px; padding: 28px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
     .modal h2 { font-size: 18px; color: #4A5D4E; margin-bottom: 20px; }
     .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
@@ -1942,17 +1950,19 @@
     <div id="diagNewModal" class="modal-overlay" style="display:none">
       <div class="modal-box" style="max-width:500px">
         <h3>🔮 新しい診断を作成</h3>
-        <div class="form-group" style="margin-top:16px">
-          <label>診断タイトル <span style="color:#c0392b">※必須</span></label>
-          <input type="text" id="diagNewTitle" placeholder="例）よもぎ蒸し体質診断">
-        </div>
-        <div class="form-group">
-          <label>説明文（任意）</label>
-          <textarea id="diagNewDescription" rows="2" placeholder="例）あなたに合ったよもぎ蒸しコースを診断します。"></textarea>
-        </div>
-        <div style="display:flex;gap:10px;margin-top:20px">
-          <button class="btn btn-primary" onclick="createNewDiag()">作成する</button>
-          <button class="btn btn-secondary" onclick="closeNewDiagModal()">キャンセル</button>
+        <div style="padding:20px 24px">
+          <div class="form-group">
+            <label>診断タイトル <span style="color:#c0392b">※必須</span></label>
+            <input type="text" id="diagNewTitle" placeholder="例）よもぎ蒸し体質診断">
+          </div>
+          <div class="form-group">
+            <label>説明文（任意）</label>
+            <textarea id="diagNewDescription" rows="2" placeholder="例）あなたに合ったよもぎ蒸しコースを診断します。"></textarea>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:20px">
+            <button class="btn btn-primary" onclick="createNewDiag()">作成する</button>
+            <button class="btn btn-secondary" onclick="closeNewDiagModal()">キャンセル</button>
+          </div>
         </div>
       </div>
     </div>
