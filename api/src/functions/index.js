@@ -63,7 +63,7 @@ async function verifyToken(token) {
 async function sendThankYouEmail({ toAddress, subject, bodyText, senderName }) {
     const connectionString = process.env.COMMUNICATION_CONNECTION_STRING;
     const senderAddress = process.env.EMAIL_SENDER_ADDRESS;
-    if (!connectionString || !senderAddress) return;
+    if (!connectionString || !senderAddress) return { success: false, error: '環境変数未設定' };
 
     const client = new EmailClient(connectionString);
     const message = {
@@ -77,8 +77,13 @@ async function sendThankYouEmail({ toAddress, subject, bodyText, senderName }) {
             to: [{ address: toAddress }],
         },
     };
-    // 送信はfire-and-forget（失敗しても回答保存は成功させる）
-    await client.beginSend(message).catch(() => {});
+    try {
+        const poller = await client.beginSend(message);
+        await poller.pollUntilDone();
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
 }
 
 // ----------------------------------------------------
@@ -342,15 +347,29 @@ app.http('response', {
                             } catch (e) {}
                         }
                         if (emailSettings) {
-                            await sendThankYouEmail({
+                            const emailResult = await sendThankYouEmail({
                                 toAddress: emailAnswer.trim(),
                                 subject: emailSettings.subject || 'アンケートへのご回答ありがとうございました',
                                 bodyText: emailSettings.bodyText || '',
                                 senderName: emailSettings.senderName || '',
                             });
+                            // Cosmos DBにメール送信ログを保存
+                            await container.items.create({
+                                id: crypto.randomUUID(),
+                                docType: 'email_log',
+                                tenant,
+                                surveyId,
+                                toAddress: emailAnswer.trim(),
+                                subject: emailSettings.subject || 'アンケートへのご回答ありがとうございました',
+                                senderName: emailSettings.senderName || '',
+                                success: emailResult.success,
+                                error: emailResult.error || null,
+                                createdAt: new Date().toISOString()
+                            }).catch(() => {});
+                            context.log(`[メール送信] tenant=${tenant} to=${emailAnswer.trim()} success=${emailResult.success}${emailResult.error ? ' error=' + emailResult.error : ''}`);
                         }
                     } catch (e) {
-                        // メール送信失敗は無視（回答保存は成功）
+                        context.log(`[メール送信エラー] tenant=${tenant} error=${e.message}`);
                     }
                 }
 
@@ -640,6 +659,40 @@ app.http('diagnosislog', {
             }
         } catch (e) {
             return { status: 500, headers: { 'Content-Type': 'application/json' }, jsonBody: { error: e.message } };
+        }
+    }
+});
+
+
+// ----------------------------------------------------
+// 📨 【メール送信ログ】取得
+// ----------------------------------------------------
+app.http('emaillog', {
+    methods: ['GET'],
+    authLevel: 'anonymous',
+    handler: async (request, context) => {
+        try {
+            const token = request.headers.get('x-admin-token');
+            if (!await verifyToken(token)) return secureJson({ error: '認証が必要です' }, 401);
+
+            const url = new URL(request.url);
+            const tenant = url.searchParams.get('tenant');
+            const surveyId = url.searchParams.get('surveyId');
+            if (!tenant) return secureJson({ error: 'tenant は必須です' }, 400);
+
+            const container = await getContainer();
+            let query, parameters;
+            if (surveyId) {
+                query = "SELECT TOP 200 * FROM c WHERE c.tenant = @tenant AND c.surveyId = @surveyId AND c.docType = 'email_log' ORDER BY c.createdAt DESC";
+                parameters = [{ name: "@tenant", value: tenant }, { name: "@surveyId", value: surveyId }];
+            } else {
+                query = "SELECT TOP 200 * FROM c WHERE c.tenant = @tenant AND c.docType = 'email_log' ORDER BY c.createdAt DESC";
+                parameters = [{ name: "@tenant", value: tenant }];
+            }
+            const { resources } = await container.items.query({ query, parameters }).fetchAll();
+            return secureJson(resources);
+        } catch (e) {
+            return secureJson({ error: e.message }, 500);
         }
     }
 });

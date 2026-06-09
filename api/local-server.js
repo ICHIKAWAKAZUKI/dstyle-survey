@@ -362,6 +362,99 @@ app.delete('/api/diagnosis', async (req, res) => {
     } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
+
+// ----------------------------------------------------
+// 📧 メール設定
+// ----------------------------------------------------
+app.get('/api/emailsettings', async (req, res) => {
+    const { tenant, surveyId } = req.query;
+    if (!tenant) return res.status(400).json({ error: 'tenant は必須です' });
+    try {
+        const container = await getContainer();
+        const id = surveyId ? 'emailsettings_' + surveyId : 'emailsettings_tenant_' + tenant;
+        try {
+            const { resource } = await container.item(id, tenant).read();
+            return res.json(resource || { emailEnabled: false });
+        } catch (e) {
+            return res.json({ emailEnabled: false });
+        }
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/emailsettings', async (req, res) => {
+    if (!await verifyToken(req.headers['x-admin-token'])) return res.status(401).json({ error: '認証が必要です' });
+    const { tenant, surveyId, emailEnabled, subject, bodyText, senderName } = req.body;
+    if (!tenant) return res.status(400).json({ error: 'tenant は必須です' });
+    try {
+        const container = await getContainer();
+        const id = surveyId ? 'emailsettings_' + surveyId : 'emailsettings_tenant_' + tenant;
+        const existing = await container.item(id, tenant).read().then(r => r.resource || {}).catch(() => ({}));
+        const updated = {
+            ...existing, id,
+            docType: 'email_settings',
+            tenant,
+            surveyId: surveyId || null,
+            emailEnabled: emailEnabled !== undefined ? emailEnabled : (existing.emailEnabled || false),
+            subject: subject !== undefined ? subject : (existing.subject || ''),
+            bodyText: bodyText !== undefined ? bodyText : (existing.bodyText || ''),
+            senderName: senderName !== undefined ? senderName : (existing.senderName || ''),
+            updatedAt: new Date().toISOString()
+        };
+        await container.items.upsert(updated);
+        return res.json(updated);
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
+// ----------------------------------------------------
+// 📨 メール送信ログ取得
+// ----------------------------------------------------
+app.get('/api/emaillog', async (req, res) => {
+    if (!await verifyToken(req.headers['x-admin-token'])) return res.status(401).json({ error: '認証が必要です' });
+    const { tenant, surveyId } = req.query;
+    if (!tenant) return res.status(400).json({ error: 'tenant は必須です' });
+    try {
+        const container = await getContainer();
+        let query, parameters;
+        if (surveyId) {
+            query = "SELECT TOP 200 * FROM c WHERE c.tenant = @tenant AND c.surveyId = @surveyId AND c.docType = 'email_log' ORDER BY c.createdAt DESC";
+            parameters = [{ name: "@tenant", value: tenant }, { name: "@surveyId", value: surveyId }];
+        } else {
+            query = "SELECT TOP 200 * FROM c WHERE c.tenant = @tenant AND c.docType = 'email_log' ORDER BY c.createdAt DESC";
+            parameters = [{ name: "@tenant", value: tenant }];
+        }
+        const { resources } = await container.items.query({ query, parameters }).fetchAll();
+        return res.json(resources);
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
+
+// ----------------------------------------------------
+// 📊 診断結果ログ
+// ----------------------------------------------------
+app.post('/api/diagnosislog', async (req, res) => {
+    const { tenant, resultKey, resultTitle, diagTitle, diagId } = req.body;
+    if (!tenant) return res.status(400).json({ error: 'tenant は必須です' });
+    try {
+        const container = await getContainer();
+        await container.items.create({ id: crypto.randomUUID(), docType: 'diagnosis_log', tenant, resultKey, resultTitle, diagTitle: diagTitle || '', diagId: diagId || '', createdAt: new Date().toISOString() });
+        return res.status(201).json({ status: 'ok' });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/diagnosislog', async (req, res) => {
+    if (!await verifyToken(req.headers['x-admin-token'])) return res.status(401).json({ error: '認証が必要です' });
+    const { tenant } = req.query;
+    if (!tenant) return res.status(400).json({ error: 'tenant は必須です' });
+    try {
+        const container = await getContainer();
+        const { resources } = await container.items.query({
+            query: "SELECT * FROM c WHERE c.tenant = @tenant AND c.docType = 'diagnosis_log' ORDER BY c.createdAt DESC OFFSET 0 LIMIT 500",
+            parameters: [{ name: "@tenant", value: tenant }]
+        }).fetchAll();
+        return res.json(resources);
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
 // ----------------------------------------------------
 // 既存ログ互換
 // ----------------------------------------------------
