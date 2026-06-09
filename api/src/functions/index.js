@@ -1,6 +1,7 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
 const { app } = require('@azure/functions');
 const { CosmosClient } = require('@azure/cosmos');
+const { EmailClient } = require('@azure/communication-email');
 const crypto = require('crypto');
 
 
@@ -47,7 +48,6 @@ async function verifyToken(token) {
         const { resource } = await container.item('token_' + token, 'auth_token').read();
         if (!resource) return false;
         if (new Date(resource.expiresAt) < new Date()) {
-            // 期限切れは削除
             await container.item('token_' + token, 'auth_token').delete().catch(() => {});
             return false;
         }
@@ -55,6 +55,30 @@ async function verifyToken(token) {
     } catch (e) {
         return false;
     }
+}
+
+// ----------------------------------------------------
+// 📧 メール送信ユーティリティ
+// ----------------------------------------------------
+async function sendThankYouEmail({ toAddress, subject, bodyText, senderName }) {
+    const connectionString = process.env.COMMUNICATION_CONNECTION_STRING;
+    const senderAddress = process.env.EMAIL_SENDER_ADDRESS;
+    if (!connectionString || !senderAddress) return;
+
+    const client = new EmailClient(connectionString);
+    const message = {
+        senderAddress,
+        replyTo: [{ address: senderAddress, displayName: senderName || '' }],
+        content: {
+            subject,
+            plainText: bodyText,
+        },
+        recipients: {
+            to: [{ address: toAddress }],
+        },
+    };
+    // 送信はfire-and-forget（失敗しても回答保存は成功させる）
+    await client.beginSend(message).catch(() => {});
 }
 
 // ----------------------------------------------------
@@ -76,7 +100,6 @@ app.http('auth', {
 
             if (password === correctPW) {
                 const token = await issueToken('auth_token');
-                // アクセスログ記録（成功）
                 await container.items.create({
                     id: crypto.randomUUID(),
                     docType: 'access_log',
@@ -87,7 +110,6 @@ app.http('auth', {
                 }).catch(() => {});
                 return secureJson({ token });
             }
-            // アクセスログ記録（失敗）
             await container.items.create({
                 id: crypto.randomUUID(),
                 docType: 'access_log',
@@ -271,7 +293,7 @@ app.http('surveys', {
 });
 
 // ----------------------------------------------------
-// 💬 【回答データ】
+// 💬 【回答データ】※送信時にメール自動送信
 // ----------------------------------------------------
 app.http('response', {
     methods: ['GET', 'POST', 'DELETE'],
@@ -290,7 +312,48 @@ app.http('response', {
                 const body = await request.json().catch(() => ({}));
                 const { surveyId, tenant, answers } = body;
                 if (!surveyId || !tenant || !answers) return { status: 400, headers: { 'Content-Type': 'application/json' }, jsonBody: { error: 'surveyId, tenant, answers は必須です' } };
-                await container.items.create({ id: crypto.randomUUID(), docType: 'survey_response', surveyId, tenant, answers, createdAt: new Date().toISOString() });
+
+                // 回答を保存
+                await container.items.create({
+                    id: crypto.randomUUID(),
+                    docType: 'survey_response',
+                    surveyId, tenant, answers,
+                    createdAt: new Date().toISOString()
+                });
+
+                // メールアドレスが回答に含まれていればお礼メール送信
+                const emailAnswer = Object.values(answers).find(v =>
+                    typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
+                );
+                if (emailAnswer) {
+                    try {
+                        // アンケート個別設定 → テナント共通設定の順で取得
+                        let emailSettings = null;
+                        const surveySettingId = 'emailsettings_' + surveyId;
+                        const tenantSettingId = 'emailsettings_tenant_' + tenant;
+                        try {
+                            const { resource } = await container.item(surveySettingId, tenant).read();
+                            if (resource && resource.emailEnabled) emailSettings = resource;
+                        } catch (e) {}
+                        if (!emailSettings) {
+                            try {
+                                const { resource } = await container.item(tenantSettingId, tenant).read();
+                                if (resource && resource.emailEnabled) emailSettings = resource;
+                            } catch (e) {}
+                        }
+                        if (emailSettings) {
+                            await sendThankYouEmail({
+                                toAddress: emailAnswer.trim(),
+                                subject: emailSettings.subject || 'アンケートへのご回答ありがとうございました',
+                                bodyText: emailSettings.bodyText || '',
+                                senderName: emailSettings.senderName || '',
+                            });
+                        }
+                    } catch (e) {
+                        // メール送信失敗は無視（回答保存は成功）
+                    }
+                }
+
                 return { status: 201, headers: { 'Content-Type': 'application/json' }, jsonBody: { status: 'ok' } };
             }
 
@@ -367,7 +430,6 @@ app.http('responsecounts', {
             const counts = {};
             surveyIds.forEach(id => counts[id] = 0);
 
-            // GROUP BYを使わず全回答を取得してJS側でカウント
             const { resources } = await container.items.query({
                 query: "SELECT c.surveyId FROM c WHERE c.tenant = @tenant AND c.docType = 'survey_response' AND ARRAY_CONTAINS(@ids, c.surveyId)",
                 parameters: [{ name: "@tenant", value: tenant }, { name: "@ids", value: surveyIds }]
@@ -399,14 +461,12 @@ app.http('tenantsettings', {
                 const tenant = url.searchParams.get('tenant');
                 const surveyId = url.searchParams.get('surveyId');
                 if (!tenant) return { status: 400, headers: { 'Content-Type': 'application/json' }, jsonBody: { error: 'tenant は必須です' } };
-                // アンケート個別設定を取得（なければテナント共通設定を返す）
                 if (surveyId) {
                     try {
                         const { resource } = await container.item('design_' + surveyId, tenant).read();
                         if (resource) return { status: 200, headers: { 'Content-Type': 'application/json' }, jsonBody: { ...resource, _source: 'survey' } };
                     } catch (e) {}
                 }
-                // テナント共通設定
                 try {
                     const { resource } = await container.item('settings_' + tenant, tenant).read();
                     return { status: 200, headers: { 'Content-Type': 'application/json' }, jsonBody: { ...(resource || {}), _source: 'tenant' } };
@@ -495,7 +555,6 @@ app.http('diagnosis', {
                         return { status: 200, headers: { 'Content-Type': 'application/json' }, jsonBody: {} };
                     }
                 }
-                // 後方互換：diagId未指定時は最初の診断を返す
                 try {
                     const { resources } = await container.items.query({
                         query: "SELECT * FROM c WHERE c.tenant = @tenant AND c.docType = 'diagnosis' ORDER BY c.updatedAt DESC OFFSET 0 LIMIT 1",
@@ -581,6 +640,64 @@ app.http('diagnosislog', {
             }
         } catch (e) {
             return { status: 500, headers: { 'Content-Type': 'application/json' }, jsonBody: { error: e.message } };
+        }
+    }
+});
+
+// ----------------------------------------------------
+// 📧 【メール設定】テナント×アンケート種別ごと
+// ----------------------------------------------------
+app.http('emailsettings', {
+    methods: ['GET', 'POST'],
+    authLevel: 'anonymous',
+    handler: async (request, context) => {
+        try {
+            const url = new URL(request.url);
+            const container = await getContainer();
+
+            if (request.method === 'GET') {
+                const tenant = url.searchParams.get('tenant');
+                const surveyId = url.searchParams.get('surveyId');
+                if (!tenant) return secureJson({ error: 'tenant は必須です' }, 400);
+
+                const id = surveyId ? 'emailsettings_' + surveyId : 'emailsettings_tenant_' + tenant;
+                try {
+                    const { resource } = await container.item(id, tenant).read();
+                    return secureJson(resource || { emailEnabled: false });
+                } catch (e) {
+                    return secureJson({ emailEnabled: false });
+                }
+            }
+
+            if (request.method === 'POST') {
+                const token = request.headers.get('x-admin-token');
+                if (!await verifyToken(token)) return secureJson({ error: '認証が必要です' }, 401);
+
+                const body = await request.json().catch(() => ({}));
+                const { tenant, surveyId, emailEnabled, subject, bodyText, senderName } = body;
+                if (!tenant) return secureJson({ error: 'tenant は必須です' }, 400);
+
+                const id = surveyId ? 'emailsettings_' + surveyId : 'emailsettings_tenant_' + tenant;
+                const existing = await container.item(id, tenant).read()
+                    .then(r => r.resource || {}).catch(() => ({}));
+
+                const updated = {
+                    ...existing,
+                    id,
+                    docType: 'email_settings',
+                    tenant,
+                    surveyId: surveyId || null,
+                    emailEnabled: emailEnabled !== undefined ? emailEnabled : (existing.emailEnabled || false),
+                    subject: subject !== undefined ? subject : (existing.subject || ''),
+                    bodyText: bodyText !== undefined ? bodyText : (existing.bodyText || ''),
+                    senderName: senderName !== undefined ? senderName : (existing.senderName || ''),
+                    updatedAt: new Date().toISOString()
+                };
+                await container.items.upsert(updated);
+                return secureJson(updated);
+            }
+        } catch (e) {
+            return secureJson({ error: e.message }, 500);
         }
     }
 });
