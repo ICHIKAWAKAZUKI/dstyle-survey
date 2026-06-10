@@ -1911,6 +1911,12 @@
       (mode && mode.value === 'select') ? 'block' : 'none';
   }
 
+  function toggleReportRangeMode() {
+    var mode = document.querySelector('input[name="reportRangeMode"]:checked');
+    var area = document.getElementById('reportRangeDaysArea');
+    if (area) area.style.display = (mode && mode.value === 'days') ? 'flex' : 'none';
+  }
+
   async function saveReportSettings() {
     var statusEl = document.getElementById('reportStatus');
     statusEl.style.display = 'none';
