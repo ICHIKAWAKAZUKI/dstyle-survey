@@ -26,8 +26,9 @@
     .topbar select { padding: 8px 28px 8px 12px; border-radius: 6px; border: none; font-size: 14px; background: rgba(255,255,255,0.9); color: #333; min-width: 200px; -webkit-appearance: none; appearance: none; }
     .topbar .logout { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; white-space: nowrap; }
     .main { padding: 24px; max-width: 1200px; margin: 0 auto; }
-    .tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 2px solid #ddd; }
-    .tab-btn { padding: 10px 20px; border: none; background: none; font-size: 14px; font-weight: bold; color: #888; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 2px solid #ddd; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab-btn { padding: 8px 12px; border: none; background: none; font-size: 12px; font-weight: bold; color: #888; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; }
     .tab-btn.active { color: #4A5D4E; border-bottom-color: #4A5D4E; }
     .tab-btn:hover { color: #4A5D4E; }
     .tab-content { display: none; }
@@ -672,7 +673,7 @@
           <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:6px">対象アンケート</label>
           <div style="background:#f8f8f8;border:1.5px solid #ddd;border-radius:8px;padding:12px">
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:8px">
-              <input type="radio" name="reportSurveyMode" value="all" checked style="accent-color:#4A5D4E"> すべてのアンケート
+              <input type="radio" name="reportSurveyMode" value="all" checked style="accent-color:#4A5D4E" onchange="toggleReportSurveySelect()"> すべてのアンケート
             </label>
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
               <input type="radio" name="reportSurveyMode" value="select" style="accent-color:#4A5D4E" onchange="toggleReportSurveySelect()"> アンケートを個別選択
@@ -2462,6 +2463,94 @@
       loadSurveys();
     }
   })();
+
+  // ============================================================
+  // 📅 定期レポート設定
+  // ============================================================
+  async function initReportTab() {
+    var checkboxArea = document.getElementById('reportSurveyCheckboxes');
+    if (checkboxArea && allSurveys && allSurveys.length > 0) {
+      checkboxArea.innerHTML = allSurveys.map(function(s) {
+        return '<label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
+          '<input type="checkbox" class="reportSurveyChk" value="' + s.id + '" style="width:16px;height:16px;-webkit-appearance:checkbox;appearance:checkbox">' +
+          '<span>' + esc(s.title) + (s.active === false ? ' <span style="color:#e74c3c;font-size:11px">(非公開)</span>' : '') + '</span>' +
+          '</label>';
+      }).join('');
+    }
+    try {
+      var res = await apiFetch(BASE_URL + '/api/reportsettings?tenant=' + TENANT);
+      if (!res.ok) return;
+      var cfg = await res.json();
+      document.getElementById('reportEnabled').checked = cfg.enabled || false;
+      document.getElementById('reportRecipients').value = (cfg.recipients || []).join('\n');
+      document.getElementById('reportDayOfWeek').value = cfg.dayOfWeek || '1';
+      document.getElementById('reportHour').value = cfg.hour || '9';
+      var surveyIds = cfg.surveyIds || [];
+      var isAll = surveyIds.length === 0 || surveyIds[0] === 'all';
+      document.querySelectorAll('input[name="reportSurveyMode"]').forEach(function(r) {
+        r.checked = (r.value === 'all') ? isAll : !isAll;
+      });
+      document.getElementById('reportSurveySelectArea').style.display = isAll ? 'none' : 'block';
+      if (!isAll) {
+        document.querySelectorAll('.reportSurveyChk').forEach(function(chk) {
+          chk.checked = surveyIds.includes(chk.value);
+        });
+      }
+    } catch (e) { /* 初回は設定なし */ }
+  }
+
+  function toggleReportSurveySelect() {
+    var mode = document.querySelector('input[name="reportSurveyMode"]:checked');
+    document.getElementById('reportSurveySelectArea').style.display =
+      (mode && mode.value === 'select') ? 'block' : 'none';
+  }
+
+  async function saveReportSettings() {
+    var statusEl = document.getElementById('reportStatus');
+    statusEl.style.display = 'none';
+    var enabled = document.getElementById('reportEnabled').checked;
+    var recipientRaw = document.getElementById('reportRecipients').value.trim();
+    var recipients = recipientRaw
+      .split(/[,\n]/)
+      .map(function(r) { return r.trim(); })
+      .filter(function(r) { return r && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r); });
+    if (enabled && recipients.length === 0) {
+      statusEl.textContent = '❌ 有効な送信先メールアドレスを入力してください';
+      statusEl.style.cssText = 'display:inline-block;background:#fce8e6;color:#c62828;padding:6px 12px;border-radius:6px;font-size:13px';
+      return;
+    }
+    var dayOfWeek = document.getElementById('reportDayOfWeek').value;
+    var hour = document.getElementById('reportHour').value;
+    var mode = document.querySelector('input[name="reportSurveyMode"]:checked');
+    var surveyIds = ['all'];
+    if (mode && mode.value === 'select') {
+      surveyIds = Array.from(document.querySelectorAll('.reportSurveyChk:checked')).map(function(c) { return c.value; });
+      if (surveyIds.length === 0) {
+        statusEl.textContent = '❌ アンケートを1つ以上選択してください';
+        statusEl.style.cssText = 'display:inline-block;background:#fce8e6;color:#c62828;padding:6px 12px;border-radius:6px;font-size:13px';
+        return;
+      }
+    }
+    try {
+      var res = await apiFetch(BASE_URL + '/api/reportsettings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant: TENANT, enabled, recipients, surveyIds, dayOfWeek, hour })
+      });
+      if (res.ok) {
+        statusEl.textContent = '✅ 保存しました';
+        statusEl.style.cssText = 'display:inline-block;background:#e8f5e9;color:#2e7d32;padding:6px 12px;border-radius:6px;font-size:13px';
+      } else {
+        statusEl.textContent = '❌ 保存失敗';
+        statusEl.style.cssText = 'display:inline-block;background:#fce8e6;color:#c62828;padding:6px 12px;border-radius:6px;font-size:13px';
+      }
+    } catch (e) {
+      statusEl.textContent = '❌ エラー: ' + e.message;
+      statusEl.style.cssText = 'display:inline-block;background:#fce8e6;color:#c62828;padding:6px 12px;border-radius:6px;font-size:13px';
+    }
+    statusEl.style.display = 'inline-block';
+    setTimeout(function() { statusEl.style.display = 'none'; }, 4000);
+  }
 </script>
     <!-- 診断新規作成モーダル -->
     <div id="diagNewModal" class="modal-overlay" style="display:none">

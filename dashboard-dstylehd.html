@@ -26,8 +26,9 @@
     .topbar select { padding: 8px 28px 8px 12px; border-radius: 6px; border: none; font-size: 14px; background: rgba(255,255,255,0.9); color: #333; min-width: 200px; -webkit-appearance: none; appearance: none; }
     .topbar .logout { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; white-space: nowrap; }
     .main { padding: 24px; max-width: 1200px; margin: 0 auto; }
-    .tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 2px solid #ddd; }
-    .tab-btn { padding: 10px 20px; border: none; background: none; font-size: 14px; font-weight: bold; color: #888; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 2px solid #ddd; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab-btn { padding: 8px 12px; border: none; background: none; font-size: 12px; font-weight: bold; color: #888; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; }
     .tab-btn.active { color: #1A6FA8; border-bottom-color: #1A6FA8; }
     .tab-btn:hover { color: #1A6FA8; }
     .tab-content { display: none; }
@@ -590,7 +591,7 @@
           <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:6px">対象アンケート</label>
           <div style="background:#f8f8f8;border:1.5px solid #ddd;border-radius:8px;padding:12px">
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:8px">
-              <input type="radio" name="reportSurveyMode" value="all" checked style="accent-color:#1A6FA8"> すべてのアンケート
+              <input type="radio" name="reportSurveyMode" value="all" checked style="accent-color:#1A6FA8" onchange="toggleReportSurveySelect()"> すべてのアンケート
             </label>
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
               <input type="radio" name="reportSurveyMode" value="select" style="accent-color:#1A6FA8" onchange="toggleReportSurveySelect()"> アンケートを個別選択
@@ -1878,12 +1879,6 @@
     document.getElementById('reportSurveySelectArea').style.display =
       (mode && mode.value === 'select') ? 'block' : 'none';
   }
-  // allモードのラジオにも同様のイベントを設定
-  document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('input[name="reportSurveyMode"]').forEach(function(r) {
-      r.addEventListener('change', toggleReportSurveySelect);
-    });
-  });
 
   async function saveReportSettings() {
     var statusEl = document.getElementById('reportStatus');
