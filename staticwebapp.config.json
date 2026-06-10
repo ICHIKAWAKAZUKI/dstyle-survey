@@ -11,7 +11,12 @@
     {
       "route": "/api/*",
       "allowedRoles": ["anonymous"]
-    }
+    },
+    { "route": "/dashboard-herbelle", "rewrite": "/dashboard-herbelle.html" },
+    { "route": "/dashboard-diana",    "rewrite": "/dashboard-diana.html" },
+    { "route": "/dashboard-dstylehd", "rewrite": "/dashboard-dstylehd.html" },
+    { "route": "/survey",             "rewrite": "/survey.html" },
+    { "route": "/diagnosis-herbelle", "rewrite": "/diagnosis-herbelle.html" }
   ],
   "navigationFallback": {
     "rewrite": "/index.html",
