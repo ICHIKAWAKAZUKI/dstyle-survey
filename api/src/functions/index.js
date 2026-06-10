@@ -927,8 +927,20 @@ app.timer('sendScheduledReports', {
                 try {
                     // ── 診断ログレポート（herbelle_diagテナント専用）──────────
                     if (tenant === 'herbelle_diag') {
+                        // 送信範囲に応じてクエリを切り替え
+                        const diagRangeMode = setting.rangeMode || 'all';
+                        const diagRangeDays = parseInt(setting.rangeDays) || 7;
+                        let diagQuery, diagParams;
+                        if (diagRangeMode === 'days') {
+                            const diagSince = new Date(Date.now() - diagRangeDays * 24 * 60 * 60 * 1000).toISOString();
+                            diagQuery = "SELECT * FROM c WHERE c.tenant = 'herbelle' AND c.docType = 'diagnosis_log' AND c.createdAt >= @since ORDER BY c.createdAt DESC";
+                            diagParams = [{ name: "@since", value: diagSince }];
+                        } else {
+                            diagQuery = "SELECT * FROM c WHERE c.tenant = 'herbelle' AND c.docType = 'diagnosis_log' ORDER BY c.createdAt DESC";
+                            diagParams = [];
+                        }
                         const { resources: diagLogs } = await container.items.query({
-                            query: "SELECT * FROM c WHERE c.tenant = 'herbelle' AND c.docType = 'diagnosis_log' ORDER BY c.createdAt DESC",
+                            query: diagQuery, parameters: diagParams
                         }).fetchAll();
 
                         if (diagLogs.length === 0) {
@@ -946,7 +958,8 @@ app.timer('sendScheduledReports', {
                         const csvContent = '\uFEFF' + header + '\n' + rows.join('\n');
                         const csvBase64 = Buffer.from(csvContent, 'utf-8').toString('base64');
                         const dateStr = nowJst.toISOString().slice(0, 10);
-                        const subject = `[Herbelle] 診断ログレポート ${dateStr}（${diagLogs.length}件）`;
+                        const diagRangeLabel = (setting.rangeMode === 'days') ? `直近${setting.rangeDays || 7}日分` : '全件';
+                        const subject = `[Herbelle] 診断ログレポート ${dateStr}（${diagRangeLabel}・${diagLogs.length}件）`;
 
                         const connectionString = process.env.COMMUNICATION_CONNECTION_STRING;
                         const senderAddress = process.env.EMAIL_SENDER_ADDRESS;

@@ -489,13 +489,13 @@
           </label>
         </div>
         <div style="background:#e8f4fd;border:1px solid #bee3f8;border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;color:#2c5282">
-          💡 設定した曜日・時刻に診断ログのCSVが添付されたメールが自動送信されます。
+          💡 設定した曜日・時刻に診断ログのCSVが添付されたメールが自動送信されます。送信範囲は下記で設定できます。
         </div>
         <div class="form-group" style="margin-bottom:16px">
           <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:6px">送信先メールアドレス <span style="color:#c0392b;font-size:11px">※必須</span></label>
           <textarea id="diagReportRecipients" placeholder="例）staff@example.com&#10;複数の場合は改行またはカンマ区切り" style="width:100%;height:90px;padding:10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;resize:vertical"></textarea>
         </div>
-        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">
           <div style="flex:1;min-width:160px">
             <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:6px">送信曜日</label>
             <select id="diagReportDayOfWeek" style="width:100%;padding:10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;-webkit-appearance:auto;appearance:auto">
@@ -521,6 +521,22 @@
               <option value="18">18:00</option><option value="19">19:00</option><option value="20">20:00</option>
               <option value="21">21:00</option><option value="22">22:00</option><option value="23">23:00</option>
             </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:20px">
+          <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:6px">送信範囲</label>
+          <div style="background:#f8f8f8;border:1.5px solid #ddd;border-radius:8px;padding:12px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:8px">
+              <input type="radio" name="diagReportRangeMode" value="all" checked style="accent-color:#4A5D4E;-webkit-appearance:radio;appearance:radio;width:16px;height:16px;cursor:pointer;flex-shrink:0" onchange="toggleDiagReportRangeMode()"> 全件（全診断ログ）
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+              <input type="radio" name="diagReportRangeMode" value="days" style="accent-color:#4A5D4E;-webkit-appearance:radio;appearance:radio;width:16px;height:16px;cursor:pointer;flex-shrink:0" onchange="toggleDiagReportRangeMode()"> 直近N日分
+            </label>
+            <div id="diagReportRangeDaysArea" style="display:none;margin-top:10px;align-items:center;gap:8px">
+              <span style="font-size:13px;color:#555">直近</span>
+              <input type="number" id="diagReportRangeDays" value="7" min="1" max="365" style="width:70px;padding:6px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:13px;text-align:center">
+              <span style="font-size:13px;color:#555">日分</span>
+            </div>
           </div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -733,7 +749,7 @@
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
               <input type="radio" name="reportRangeMode" value="days" style="accent-color:#4A5D4E;-webkit-appearance:radio;appearance:radio;width:16px;height:16px;cursor:pointer;flex-shrink:0" onchange="toggleReportRangeMode()"> 直近N日分
             </label>
-            <div id="reportRangeDaysArea" style="display:none;margin-top:10px;display:none;align-items:center;gap:8px">
+            <div id="reportRangeDaysArea" style="display:none;margin-top:10px;align-items:center;gap:8px">
               <span style="font-size:13px;color:#555">直近</span>
               <input type="number" id="reportRangeDays" value="7" min="1" max="365" style="width:70px;padding:6px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:13px;text-align:center">
               <span style="font-size:13px;color:#555">日分</span>
@@ -2567,7 +2583,21 @@
       document.getElementById('diagReportRecipients').value = (cfg.recipients || []).join('\n');
       document.getElementById('diagReportDayOfWeek').value = cfg.dayOfWeek || '1';
       document.getElementById('diagReportHour').value = cfg.hour || '9';
+      // 送信範囲復元
+      var rangeMode = cfg.rangeMode || 'all';
+      document.querySelectorAll('input[name="diagReportRangeMode"]').forEach(function(r) {
+        r.checked = r.value === rangeMode;
+      });
+      var daysArea = document.getElementById('diagReportRangeDaysArea');
+      if (daysArea) daysArea.style.display = rangeMode === 'days' ? 'flex' : 'none';
+      document.getElementById('diagReportRangeDays').value = cfg.rangeDays || 7;
     } catch (e) { /* 初回は設定なし */ }
+  }
+
+  function toggleDiagReportRangeMode() {
+    var mode = document.querySelector('input[name="diagReportRangeMode"]:checked');
+    var area = document.getElementById('diagReportRangeDaysArea');
+    if (area) area.style.display = (mode && mode.value === 'days') ? 'flex' : 'none';
   }
 
   async function saveDiagReportSettings() {
@@ -2586,11 +2616,14 @@
     }
     var dayOfWeek = document.getElementById('diagReportDayOfWeek').value;
     var hour = document.getElementById('diagReportHour').value;
+    var rangeRadio = document.querySelector('input[name="diagReportRangeMode"]:checked');
+    var rangeMode = rangeRadio ? rangeRadio.value : 'all';
+    var rangeDays = parseInt(document.getElementById('diagReportRangeDays').value) || 7;
     try {
       var res = await apiFetch(BASE_URL + '/api/reportsettings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenant: 'herbelle_diag', enabled, recipients, surveyIds: ['diag'], dayOfWeek, hour })
+        body: JSON.stringify({ tenant: 'herbelle_diag', enabled, recipients, surveyIds: ['diag'], dayOfWeek, hour, rangeMode, rangeDays })
       });
       if (res.ok) {
         statusEl.textContent = '✅ 保存しました';
