@@ -524,6 +524,81 @@ app.all('/api/log', async (req, res) => {
 });
 
 // ----------------------------------------------------
+// 📅 定期レポート設定
+// ----------------------------------------------------
+app.get('/api/reportsettings', async (req, res) => {
+    if (!await verifyToken(req.headers['x-admin-token'])) return res.status(401).json({ error: '認証が必要です' });
+    const { tenant } = req.query;
+    if (!tenant) return res.status(400).json({ error: 'tenant は必須です' });
+    try {
+        const container = await getContainer();
+        const id = 'reportsettings_' + tenant;
+        try {
+            const { resource } = await container.item(id, tenant).read();
+            return res.json(resource || { enabled: false, recipients: [], surveyIds: [], dayOfWeek: '1', hour: '9' });
+        } catch (e) {
+            return res.json({ enabled: false, recipients: [], surveyIds: [], dayOfWeek: '1', hour: '9' });
+        }
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/reportsettings', async (req, res) => {
+    if (!await verifyToken(req.headers['x-admin-token'])) return res.status(401).json({ error: '認証が必要です' });
+    const { tenant, enabled, recipients, surveyIds, dayOfWeek, hour } = req.body;
+    if (!tenant) return res.status(400).json({ error: 'tenant は必須です' });
+    try {
+        const container = await getContainer();
+        const id = 'reportsettings_' + tenant;
+        const existing = await container.item(id, tenant).read().then(r => r.resource || {}).catch(() => ({}));
+        const updated = {
+            ...existing, id,
+            docType: 'report_settings',
+            tenant,
+            enabled: enabled !== undefined ? enabled : (existing.enabled || false),
+            recipients: recipients !== undefined ? recipients : (existing.recipients || []),
+            surveyIds: surveyIds !== undefined ? surveyIds : (existing.surveyIds || []),
+            dayOfWeek: dayOfWeek !== undefined ? dayOfWeek : (existing.dayOfWeek || '1'),
+            hour: hour !== undefined ? hour : (existing.hour || '9'),
+            updatedAt: new Date().toISOString()
+        };
+        await container.items.upsert(updated);
+        return res.json(updated);
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
+// ----------------------------------------------------
+// 📊 グループ全体統計
+// ----------------------------------------------------
+app.get('/api/groupstats', async (req, res) => {
+    if (!await verifyToken(req.headers['x-admin-token'])) return res.status(401).json({ error: '認証が必要です' });
+    const { days } = req.query;
+    const daysNum = parseInt(days || '30');
+    try {
+        const container = await getContainer();
+        const since = new Date(Date.now() - daysNum * 24 * 60 * 60 * 1000).toISOString();
+        const tenants = ['herbelle', 'diana', 'dstylehd'];
+        const result = {};
+        for (const tenant of tenants) {
+            const { resources: surveys } = await container.items.query({
+                query: "SELECT c.id, c.title, c.active FROM c WHERE c.tenant = @tenant AND c.docType = 'survey_definition' ORDER BY c.createdAt DESC",
+                parameters: [{ name: "@tenant", value: tenant }]
+            }).fetchAll();
+            const { resources: responses } = await container.items.query({
+                query: "SELECT c.surveyId FROM c WHERE c.tenant = @tenant AND c.docType = 'survey_response' AND c.createdAt >= @since",
+                parameters: [{ name: "@tenant", value: tenant }, { name: "@since", value: since }]
+            }).fetchAll();
+            const countMap = {};
+            responses.forEach(r => { countMap[r.surveyId] = (countMap[r.surveyId] || 0) + 1; });
+            result[tenant] = {
+                surveys: surveys.map(s => ({ id: s.id, title: s.title, active: s.active, count: countMap[s.id] || 0 })),
+                total: responses.length
+            };
+        }
+        return res.json(result);
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
+// ----------------------------------------------------
 // 起動
 // ----------------------------------------------------
 app.listen(7071, () => {

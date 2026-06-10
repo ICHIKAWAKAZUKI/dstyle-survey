@@ -792,6 +792,266 @@ app.http('emailsettings', {
 });
 
 // ----------------------------------------------------
+// 📅 【定期レポート設定】GET / POST
+// ----------------------------------------------------
+app.http('reportsettings', {
+    methods: ['GET', 'POST'],
+    authLevel: 'anonymous',
+    handler: async (request, context) => {
+        try {
+            const url = new URL(request.url);
+            const container = await getContainer();
+
+            if (request.method === 'GET') {
+                const tenant = url.searchParams.get('tenant');
+                if (!tenant) return secureJson({ error: 'tenant は必須です' }, 400);
+                const token = request.headers.get('x-admin-token');
+                if (!await verifyToken(token)) return secureJson({ error: '認証が必要です' }, 401);
+                const id = 'reportsettings_' + tenant;
+                try {
+                    const { resource } = await container.item(id, tenant).read();
+                    return secureJson(resource || { enabled: false, recipients: [], surveyIds: [], dayOfWeek: '1', hour: '9' });
+                } catch (e) {
+                    return secureJson({ enabled: false, recipients: [], surveyIds: [], dayOfWeek: '1', hour: '9' });
+                }
+            }
+
+            if (request.method === 'POST') {
+                const token = request.headers.get('x-admin-token');
+                if (!await verifyToken(token)) return secureJson({ error: '認証が必要です' }, 401);
+                const body = await request.json().catch(() => ({}));
+                const { tenant, enabled, recipients, surveyIds, dayOfWeek, hour } = body;
+                if (!tenant) return secureJson({ error: 'tenant は必須です' }, 400);
+                const id = 'reportsettings_' + tenant;
+                const existing = await container.item(id, tenant).read()
+                    .then(r => r.resource || {}).catch(() => ({}));
+                const updated = {
+                    ...existing, id,
+                    docType: 'report_settings',
+                    tenant,
+                    enabled: enabled !== undefined ? enabled : (existing.enabled || false),
+                    recipients: recipients !== undefined ? recipients : (existing.recipients || []),
+                    surveyIds: surveyIds !== undefined ? surveyIds : (existing.surveyIds || []),
+                    dayOfWeek: dayOfWeek !== undefined ? dayOfWeek : (existing.dayOfWeek || '1'),
+                    hour: hour !== undefined ? hour : (existing.hour || '9'),
+                    updatedAt: new Date().toISOString()
+                };
+                await container.items.upsert(updated);
+                return secureJson(updated);
+            }
+        } catch (e) {
+            return secureJson({ error: e.message }, 500);
+        }
+    }
+});
+
+// ----------------------------------------------------
+// 📊 【グループ全体統計】全テナント回答数サマリー
+// ----------------------------------------------------
+app.http('groupstats', {
+    methods: ['GET'],
+    authLevel: 'anonymous',
+    handler: async (request, context) => {
+        try {
+            const token = request.headers.get('x-admin-token');
+            if (!await verifyToken(token)) return secureJson({ error: '認証が必要です' }, 401);
+            const url = new URL(request.url);
+            const days = parseInt(url.searchParams.get('days') || '30');
+            const container = await getContainer();
+
+            const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+            const tenants = ['herbelle', 'diana', 'dstylehd'];
+            const result = {};
+
+            for (const tenant of tenants) {
+                // アンケート定義取得
+                const { resources: surveys } = await container.items.query({
+                    query: "SELECT c.id, c.title, c.active FROM c WHERE c.tenant = @tenant AND c.docType = 'survey_definition' ORDER BY c.createdAt DESC",
+                    parameters: [{ name: "@tenant", value: tenant }]
+                }).fetchAll();
+
+                // 回答数取得
+                const { resources: responses } = await container.items.query({
+                    query: "SELECT c.surveyId FROM c WHERE c.tenant = @tenant AND c.docType = 'survey_response' AND c.createdAt >= @since",
+                    parameters: [{ name: "@tenant", value: tenant }, { name: "@since", value: since }]
+                }).fetchAll();
+
+                const countMap = {};
+                responses.forEach(r => { countMap[r.surveyId] = (countMap[r.surveyId] || 0) + 1; });
+
+                result[tenant] = {
+                    surveys: surveys.map(s => ({
+                        id: s.id, title: s.title, active: s.active,
+                        count: countMap[s.id] || 0
+                    })),
+                    total: responses.length
+                };
+            }
+            return secureJson(result);
+        } catch (e) {
+            return secureJson({ error: e.message }, 500);
+        }
+    }
+});
+
+// ----------------------------------------------------
+// ⏰ 【タイマー】定期CSVレポート送信（毎時0分起動）
+// ----------------------------------------------------
+app.timer('sendScheduledReports', {
+    schedule: '0 0 * * * *',  // 毎時0分に起動し、対象テナントを確認して送信
+    handler: async (myTimer, context) => {
+        try {
+            const container = await getContainer();
+            // JST時刻を取得
+            const nowJst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+            const currentHour = nowJst.getUTCHours().toString();
+            const currentDow  = nowJst.getUTCDay().toString(); // 0=日,1=月...6=土
+
+            // 全テナントのレポート設定を取得
+            const { resources: allSettings } = await container.items.query({
+                query: "SELECT * FROM c WHERE c.docType = 'report_settings' AND c.enabled = true"
+            }).fetchAll();
+
+            for (const setting of allSettings) {
+                // 曜日・時刻チェック（'7'=毎日）
+                const dowMatch = setting.dayOfWeek === '7' || setting.dayOfWeek === currentDow;
+                const hourMatch = setting.hour === currentHour;
+                if (!dowMatch || !hourMatch) continue;
+                if (!setting.recipients || setting.recipients.length === 0) continue;
+
+                const tenant = setting.tenant;
+                context.log(`[定期レポート] 送信開始 tenant=${tenant}`);
+
+                try {
+                    // 対象アンケートの回答を取得してCSV生成
+                    let surveyIds = setting.surveyIds || [];
+
+                    // surveyIds が空 or ['all'] なら全アンケートを対象に
+                    if (surveyIds.length === 0 || surveyIds[0] === 'all') {
+                        const { resources: surveys } = await container.items.query({
+                            query: "SELECT c.id FROM c WHERE c.tenant = @tenant AND c.docType = 'survey_definition'",
+                            parameters: [{ name: "@tenant", value: tenant }]
+                        }).fetchAll();
+                        surveyIds = surveys.map(s => s.id);
+                    }
+
+                    // 全アンケートの定義と回答を取得
+                    const csvSections = [];
+                    let totalCount = 0;
+                    for (const surveyId of surveyIds) {
+                        let surveyTitle = surveyId;
+                        try {
+                            const { resource: surveyDef } = await container.item(surveyId, tenant).read();
+                            if (surveyDef) surveyTitle = surveyDef.title || surveyId;
+                        } catch (e) {}
+
+                        const { resources: responses } = await container.items.query({
+                            query: "SELECT * FROM c WHERE c.tenant = @tenant AND c.surveyId = @sid AND c.docType = 'survey_response' ORDER BY c.createdAt DESC",
+                            parameters: [{ name: "@tenant", value: tenant }, { name: "@sid", value: surveyId }]
+                        }).fetchAll();
+
+                        if (responses.length === 0) continue;
+                        totalCount += responses.length;
+
+                        // CSV変換
+                        const allKeys = new Set();
+                        responses.forEach(r => Object.keys(r.answers || {}).forEach(k => allKeys.add(k)));
+                        const keys = Array.from(allKeys);
+                        const header = ['回答日時', ...keys].join(',');
+                        const rows = responses.map(r => {
+                            const date = new Date(r.createdAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+                            const vals = keys.map(k => {
+                                const v = (r.answers || {})[k] || '';
+                                return '"' + String(v).replace(/"/g, '""') + '"';
+                            });
+                            return ['"' + date + '"', ...vals].join(',');
+                        });
+                        csvSections.push(`【${surveyTitle}】\n${header}\n${rows.join('\n')}`);
+                    }
+
+                    if (csvSections.length === 0) {
+                        context.log(`[定期レポート] 回答なし tenant=${tenant} スキップ`);
+                        continue;
+                    }
+
+                    const csvContent = '\uFEFF' + csvSections.join('\n\n'); // BOM付きUTF-8
+                    const csvBase64 = Buffer.from(csvContent, 'utf-8').toString('base64');
+
+                    const dateStr = nowJst.toISOString().slice(0, 10);
+                    const tenantLabel = { herbelle: 'Herbelle', diana: 'Diana', dstylehd: 'DstyleHD' }[tenant] || tenant;
+                    const subject = `[${tenantLabel}] アンケート回答レポート ${dateStr}（${totalCount}件）`;
+
+                    // 送信先ごとにメール送信
+                    const connectionString = process.env.COMMUNICATION_CONNECTION_STRING;
+                    const senderAddress = process.env.EMAIL_SENDER_ADDRESS;
+                    if (!connectionString || !senderAddress) {
+                        context.log('[定期レポート] 環境変数未設定 スキップ');
+                        continue;
+                    }
+                    const { EmailClient } = require('@azure/communication-email');
+                    const emailClient = new EmailClient(connectionString);
+
+                    for (const recipient of setting.recipients) {
+                        if (!recipient || !recipient.trim()) continue;
+                        try {
+                            const message = {
+                                senderAddress,
+                                content: {
+                                    subject,
+                                    plainText: `${tenantLabel} のアンケート回答レポートをお送りします。\n\n対象期間：${dateStr} 時点の全回答\n総回答数：${totalCount}件\n\n添付のCSVファイルをご確認ください。`,
+                                },
+                                recipients: { to: [{ address: recipient.trim() }] },
+                                attachments: [{
+                                    name: `${tenantLabel}_report_${dateStr}.csv`,
+                                    contentType: 'text/csv',
+                                    contentInBase64: csvBase64
+                                }]
+                            };
+                            const poller = await emailClient.beginSend(message);
+                            await poller.pollUntilDone();
+                            context.log(`[定期レポート] 送信成功 tenant=${tenant} to=${recipient.trim()}`);
+                            // 送信ログ記録
+                            await container.items.create({
+                                id: crypto.randomUUID(),
+                                docType: 'email_log',
+                                tenant,
+                                surveyId: 'report',
+                                toAddress: recipient.trim(),
+                                subject,
+                                senderName: 'システム定期レポート',
+                                success: true,
+                                skipped: false,
+                                error: null,
+                                createdAt: new Date().toISOString()
+                            }).catch(() => {});
+                        } catch (e) {
+                            context.log(`[定期レポート] 送信失敗 to=${recipient} error=${e.message}`);
+                            await container.items.create({
+                                id: crypto.randomUUID(),
+                                docType: 'email_log',
+                                tenant,
+                                surveyId: 'report',
+                                toAddress: recipient.trim(),
+                                subject,
+                                senderName: 'システム定期レポート',
+                                success: false,
+                                skipped: false,
+                                error: e.message,
+                                createdAt: new Date().toISOString()
+                            }).catch(() => {});
+                        }
+                    }
+                } catch (e) {
+                    context.log(`[定期レポート] エラー tenant=${tenant} error=${e.message}`);
+                }
+            }
+        } catch (e) {
+            context.log('[定期レポート タイマーエラー] ' + e.message);
+        }
+    }
+});
+
+// ----------------------------------------------------
 // ⏰ 【タイマー】期限切れトークンの自動削除（毎日深夜2時）
 // ----------------------------------------------------
 app.timer('cleanupExpiredTokens', {

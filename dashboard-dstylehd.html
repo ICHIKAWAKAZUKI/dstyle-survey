@@ -196,6 +196,7 @@
       <button class="tab-btn" onclick="switchTab('surveys')">📋 アンケート管理</button>
       <button class="tab-btn" onclick="switchTab('email')">📧 メール設定</button>
       <button class="tab-btn" onclick="switchTab('emaillog')">📨 メール送信ログ</button>
+      <button class="tab-btn" onclick="switchTab('report')">📅 定期レポート</button>
     </div>
 
     <!-- タブ1: 回答データ -->
@@ -547,6 +548,66 @@
         </div>
       </div>
     </div>
+    <!-- タブ: 定期レポート設定 -->
+    <div id="tab-report" class="tab-content">
+      <div class="panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h2 style="margin:0">📅 定期CSVレポート設定</h2>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:bold">
+            <input type="checkbox" id="reportEnabled" style="width:18px;height:18px;accent-color:#1A6FA8;-webkit-appearance:checkbox;appearance:checkbox">
+            送信を有効にする
+          </label>
+        </div>
+        <div style="background:#e8f4fd;border:1px solid #bee3f8;border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;color:#2c5282">
+          💡 設定した曜日・時刻にCSVファイルが添付されたメールが自動送信されます。回答データは送信時点の全件が対象です。
+        </div>
+        <div class="form-group" style="margin-bottom:16px">
+          <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:6px">送信先メールアドレス <span style="color:#c0392b;font-size:11px">※必須</span></label>
+          <textarea id="reportRecipients" placeholder="例）staff@example.com&#10;複数の場合は改行またはカンマ区切り" style="width:100%;height:90px;padding:10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;resize:vertical"></textarea>
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">
+          <div style="flex:1;min-width:160px">
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:6px">送信曜日</label>
+            <select id="reportDayOfWeek" style="width:100%;padding:10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;-webkit-appearance:auto;appearance:auto">
+              <option value="1">月曜日</option>
+              <option value="2">火曜日</option>
+              <option value="3">水曜日</option>
+              <option value="4">木曜日</option>
+              <option value="5">金曜日</option>
+              <option value="6">土曜日</option>
+              <option value="0">日曜日</option>
+              <option value="7">毎日</option>
+            </select>
+          </div>
+          <div style="flex:1;min-width:160px">
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:6px">送信時刻（JST）</label>
+            <select id="reportHour" style="width:100%;padding:10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;-webkit-appearance:auto;appearance:auto">
+              <option value="0">00:00</option><option value="1">01:00</option><option value="2">02:00</option><option value="3">03:00</option><option value="4">04:00</option><option value="5">05:00</option><option value="6">06:00</option><option value="7">07:00</option><option value="8">08:00</option><option value="9">09:00</option><option value="10">10:00</option><option value="11">11:00</option><option value="12">12:00</option><option value="13">13:00</option><option value="14">14:00</option><option value="15">15:00</option><option value="16">16:00</option><option value="17">17:00</option><option value="18">18:00</option><option value="19">19:00</option><option value="20">20:00</option><option value="21">21:00</option><option value="22">22:00</option><option value="23">23:00</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:20px">
+          <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:6px">対象アンケート</label>
+          <div style="background:#f8f8f8;border:1.5px solid #ddd;border-radius:8px;padding:12px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:8px">
+              <input type="radio" name="reportSurveyMode" value="all" checked style="accent-color:#1A6FA8"> すべてのアンケート
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+              <input type="radio" name="reportSurveyMode" value="select" style="accent-color:#1A6FA8" onchange="toggleReportSurveySelect()"> アンケートを個別選択
+            </label>
+            <div id="reportSurveySelectArea" style="display:none;margin-top:10px;padding:10px;background:white;border:1px solid #ddd;border-radius:6px">
+              <div id="reportSurveyCheckboxes" style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+                <span style="color:#888;font-size:12px">読み込み中...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="saveReportSettings()" style="background:#1A6FA8">💾 設定を保存</button>
+          <span id="reportStatus" style="font-size:13px;display:none;padding:6px 12px;border-radius:6px"></span>
+        </div>
+      </div>
+    </div>
     <!-- タブ3: アンケート管理 -->
     <div id="tab-surveys" class="tab-content">
       <div class="panel">
@@ -750,6 +811,7 @@
     if (name === 'email') initEmailTab();
     if (name === 'emaillog') initEmailLogTab();
     if (name === 'surveys') renderSurveyList();
+    if (name === 'report') initReportTab();
   }
 
   async function loadSurveys() {
@@ -1769,6 +1831,111 @@
       loadSurveys();
     }
   })();
+
+  // ============================================================
+  // 📅 定期レポート設定
+  // ============================================================
+  async function initReportTab() {
+    // アンケート一覧をチェックボックスに展開
+    var checkboxArea = document.getElementById('reportSurveyCheckboxes');
+    if (checkboxArea && allSurveys.length > 0) {
+      checkboxArea.innerHTML = allSurveys.map(function(s) {
+        return '<label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
+          '<input type="checkbox" class="reportSurveyChk" value="' + s.id + '" style="width:16px;height:16px;accent-color:var(--color,#0078D4);-webkit-appearance:checkbox;appearance:checkbox">' +
+          '<span>' + esc(s.title) + (s.active === false ? ' <span style="color:#e74c3c;font-size:11px">(非公開)</span>' : '') + '</span>' +
+          '</label>';
+      }).join('');
+    }
+    // 既存設定を読み込み
+    try {
+      var res = await apiFetch(BASE_URL + '/api/reportsettings?tenant=' + TENANT);
+      if (!res.ok) return;
+      var cfg = await res.json();
+      document.getElementById('reportEnabled').checked = cfg.enabled || false;
+      // 送信先
+      var recipients = (cfg.recipients || []).join('\n');
+      document.getElementById('reportRecipients').value = recipients;
+      // 曜日・時刻
+      document.getElementById('reportDayOfWeek').value = cfg.dayOfWeek || '1';
+      document.getElementById('reportHour').value = cfg.hour || '9';
+      // 対象アンケート
+      var surveyIds = cfg.surveyIds || [];
+      var isAll = surveyIds.length === 0 || surveyIds[0] === 'all';
+      document.querySelectorAll('input[name="reportSurveyMode"]').forEach(function(r) {
+        r.checked = (r.value === 'all') ? isAll : !isAll;
+      });
+      document.getElementById('reportSurveySelectArea').style.display = isAll ? 'none' : 'block';
+      if (!isAll) {
+        document.querySelectorAll('.reportSurveyChk').forEach(function(chk) {
+          chk.checked = surveyIds.includes(chk.value);
+        });
+      }
+    } catch (e) { /* 初回は設定なし */ }
+  }
+
+  function toggleReportSurveySelect() {
+    var mode = document.querySelector('input[name="reportSurveyMode"]:checked');
+    document.getElementById('reportSurveySelectArea').style.display =
+      (mode && mode.value === 'select') ? 'block' : 'none';
+  }
+  // allモードのラジオにも同様のイベントを設定
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('input[name="reportSurveyMode"]').forEach(function(r) {
+      r.addEventListener('change', toggleReportSurveySelect);
+    });
+  });
+
+  async function saveReportSettings() {
+    var statusEl = document.getElementById('reportStatus');
+    statusEl.style.display = 'none';
+
+    var enabled = document.getElementById('reportEnabled').checked;
+    var recipientRaw = document.getElementById('reportRecipients').value.trim();
+    var recipients = recipientRaw
+      .split(/[,\n]/)
+      .map(function(r) { return r.trim(); })
+      .filter(function(r) { return r && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r); });
+
+    if (enabled && recipients.length === 0) {
+      statusEl.textContent = '❌ 有効な送信先メールアドレスを入力してください';
+      statusEl.style.cssText = 'display:inline-block;background:#fce8e6;color:#c62828;padding:6px 12px;border-radius:6px;font-size:13px';
+      return;
+    }
+
+    var dayOfWeek = document.getElementById('reportDayOfWeek').value;
+    var hour = document.getElementById('reportHour').value;
+    var mode = document.querySelector('input[name="reportSurveyMode"]:checked');
+    var surveyIds = ['all'];
+    if (mode && mode.value === 'select') {
+      surveyIds = Array.from(document.querySelectorAll('.reportSurveyChk:checked')).map(function(c) { return c.value; });
+      if (surveyIds.length === 0) {
+        statusEl.textContent = '❌ アンケートを1つ以上選択してください';
+        statusEl.style.cssText = 'display:inline-block;background:#fce8e6;color:#c62828;padding:6px 12px;border-radius:6px;font-size:13px';
+        return;
+      }
+    }
+
+    try {
+      var res = await apiFetch(BASE_URL + '/api/reportsettings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant: TENANT, enabled, recipients, surveyIds, dayOfWeek, hour })
+      });
+      if (res.ok) {
+        statusEl.textContent = '✅ 保存しました';
+        statusEl.style.cssText = 'display:inline-block;background:#e8f5e9;color:#2e7d32;padding:6px 12px;border-radius:6px;font-size:13px';
+      } else {
+        statusEl.textContent = '❌ 保存失敗';
+        statusEl.style.cssText = 'display:inline-block;background:#fce8e6;color:#c62828;padding:6px 12px;border-radius:6px;font-size:13px';
+      }
+    } catch (e) {
+      statusEl.textContent = '❌ エラー: ' + e.message;
+      statusEl.style.cssText = 'display:inline-block;background:#fce8e6;color:#c62828;padding:6px 12px;border-radius:6px;font-size:13px';
+    }
+    statusEl.style.display = 'inline-block';
+    setTimeout(function() { statusEl.style.display = 'none'; }, 4000);
+  }
+
 </script>
 </body>
 </html>

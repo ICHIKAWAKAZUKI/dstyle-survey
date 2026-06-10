@@ -91,6 +91,7 @@
         <div class="container">
             <div class="tabs">
                 <button class="tab-btn active" onclick="switchTab('portal')">🏠 ポータル</button>
+                <button class="tab-btn" onclick="switchTab('groupstats')">📊 グループ全体</button>
                 <button class="tab-btn" onclick="switchTab('accesslog')">🔐 アクセスログ</button>
             </div>
 
@@ -138,7 +139,37 @@
                 </div>
             </div>
 
-            <!-- タブ2: アクセスログ -->
+            <!-- タブ2: グループ全体ダッシュボード -->
+            <div id="tab-groupstats" class="tab-content">
+                <div class="panel">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+                        <h2 style="margin:0">📊 グループ全体 回答サマリー</h2>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <label style="font-size:13px;color:#555;font-weight:bold">期間：</label>
+                            <select id="statsDays" onchange="fetchGroupStats()" style="padding:7px 12px;border:1.5px solid #ddd;border-radius:6px;font-size:13px;background:white">
+                                <option value="7">直近7日</option>
+                                <option value="30" selected>直近30日</option>
+                                <option value="90">直近90日</option>
+                                <option value="365">直近1年</option>
+                            </select>
+                            <button class="btn btn-primary" onclick="fetchGroupStats()">🔄 更新</button>
+                        </div>
+                    </div>
+                    <!-- 合計サマリーカード -->
+                    <div class="summary" id="groupSummaryCards" style="margin-bottom:20px">
+                        <div class="card hl"><div class="num" id="totalAll">—</div><div class="label">総回答数（全社）</div></div>
+                        <div class="card hl" style="border-left-color:#4A5D4E"><div class="num" id="totalHerbelle" style="color:#4A5D4E">—</div><div class="label">Herbelle</div></div>
+                        <div class="card hl" style="border-left-color:#7B4F6E"><div class="num" id="totalDiana" style="color:#7B4F6E">—</div><div class="label">Diana</div></div>
+                        <div class="card hl" style="border-left-color:#1A6FA8"><div class="num" id="totalDstylehd" style="color:#1A6FA8">—</div><div class="label">DstyleHD</div></div>
+                    </div>
+                    <!-- テナント別詳細 -->
+                    <div id="groupStatsDetail">
+                        <div class="loading">タブを開くと読み込みます</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- タブ3: アクセスログ -->
             <div id="tab-accesslog" class="tab-content">
                 <div class="panel">
                     <h2>🔐 アクセスログ</h2>
@@ -237,6 +268,82 @@
         document.querySelector('[onclick="switchTab(\'' + name + '\')"]').classList.add('active');
         document.getElementById('tab-' + name).classList.add('active');
         if (name === 'accesslog') fetchAccessLog();
+        if (name === 'groupstats') fetchGroupStats();
+    }
+
+    // ============================================================
+    // グループ全体ダッシュボード
+    // ============================================================
+    var groupStatsCache = null;
+
+    async function fetchGroupStats() {
+        var detail = document.getElementById('groupStatsDetail');
+        detail.innerHTML = '<div class="loading">読み込み中...</div>';
+        var token = portalToken || sessionStorage.getItem('portalToken');
+        if (!token) return;
+        var days = document.getElementById('statsDays').value;
+        try {
+            var res = await fetch(BASE_URL + '/api/groupstats?days=' + days, {
+                headers: { 'x-admin-token': token }
+            });
+            if (!res.ok) throw new Error('取得失敗');
+            var data = await res.json();
+            groupStatsCache = data;
+
+            var tenants = [
+                { key: 'herbelle', label: 'Herbelle', icon: '🌿', color: '#4A5D4E' },
+                { key: 'diana',    label: 'Diana',    icon: '👗', color: '#7B4F6E' },
+                { key: 'dstylehd', label: 'DstyleHD', icon: '🏢', color: '#1A6FA8' }
+            ];
+
+            // 合計カード更新
+            var total = 0;
+            tenants.forEach(function(t) {
+                var cnt = (data[t.key] || {}).total || 0;
+                total += cnt;
+                var el = document.getElementById('total' + t.key.charAt(0).toUpperCase() + t.key.slice(1));
+                if (el) el.textContent = cnt.toLocaleString();
+            });
+            document.getElementById('totalAll').textContent = total.toLocaleString();
+
+            // テナント別詳細テーブル
+            var html = '';
+            tenants.forEach(function(t) {
+                var td = data[t.key] || { surveys: [], total: 0 };
+                html += '<div style="margin-bottom:20px">';
+                html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:10px 14px;background:' + t.color + '20;border-left:4px solid ' + t.color + ';border-radius:0 8px 8px 0">';
+                html += '<span style="font-size:16px">' + t.icon + '</span>';
+                html += '<span style="font-size:15px;font-weight:bold;color:' + t.color + '">' + t.label + '</span>';
+                html += '<span style="margin-left:auto;font-size:13px;color:#555">期間内合計：<strong style="color:' + t.color + '">' + td.total + '件</strong></span>';
+                html += '</div>';
+                if (td.surveys.length === 0) {
+                    html += '<div class="empty" style="padding:16px">アンケートがありません</div>';
+                } else {
+                    html += '<div class="table-wrap"><div class="table-scroll"><table>';
+                    html += '<thead><tr><th>アンケート名</th><th style="width:80px">状態</th><th style="width:100px;text-align:right">期間内回答数</th></tr></thead><tbody>';
+                    td.surveys.forEach(function(s) {
+                        var badge = s.active !== false
+                            ? '<span class="badge-success">公開中</span>'
+                            : '<span class="badge-fail">非公開</span>';
+                        html += '<tr>';
+                        html += '<td>' + esc(s.title || s.id) + '</td>';
+                        html += '<td>' + badge + '</td>';
+                        html += '<td style="text-align:right;font-weight:bold;color:' + t.color + '">' + (s.count || 0) + ' 件</td>';
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table></div></div>';
+                }
+                html += '</div>';
+            });
+            detail.innerHTML = html;
+        } catch(e) {
+            detail.innerHTML = '<div class="empty">❌ ' + e.message + '</div>';
+        }
+    }
+
+    function esc(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
     // ============================================================

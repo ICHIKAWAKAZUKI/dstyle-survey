@@ -196,6 +196,7 @@
       <button class="tab-btn" onclick="switchTab('surveys')">📋 アンケート管理</button>
       <button class="tab-btn" onclick="switchTab('email')">📧 メール設定</button>
       <button class="tab-btn" onclick="switchTab('emaillog')">📨 メール送信ログ</button>
+      <button class="tab-btn" onclick="switchTab('report')">📅 定期レポート</button>
       <button class="tab-btn" onclick="switchTab('diagnosis')">🔮 診断管理</button>
       <button class="tab-btn" onclick="switchTab('diaglog')">📊 診断ログ</button>
     </div>
@@ -629,6 +630,66 @@
         </div>
       </div>
     </div>
+    <!-- タブ: 定期レポート設定 -->
+    <div id="tab-report" class="tab-content">
+      <div class="panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h2 style="margin:0">📅 定期CSVレポート設定</h2>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:bold">
+            <input type="checkbox" id="reportEnabled" style="width:18px;height:18px;accent-color:#4A5D4E;-webkit-appearance:checkbox;appearance:checkbox">
+            送信を有効にする
+          </label>
+        </div>
+        <div style="background:#e8f4fd;border:1px solid #bee3f8;border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;color:#2c5282">
+          💡 設定した曜日・時刻にCSVファイルが添付されたメールが自動送信されます。回答データは送信時点の全件が対象です。
+        </div>
+        <div class="form-group" style="margin-bottom:16px">
+          <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:6px">送信先メールアドレス <span style="color:#c0392b;font-size:11px">※必須</span></label>
+          <textarea id="reportRecipients" placeholder="例）staff@example.com&#10;複数の場合は改行またはカンマ区切り" style="width:100%;height:90px;padding:10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;resize:vertical"></textarea>
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">
+          <div style="flex:1;min-width:160px">
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:6px">送信曜日</label>
+            <select id="reportDayOfWeek" style="width:100%;padding:10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;-webkit-appearance:auto;appearance:auto">
+              <option value="1">月曜日</option>
+              <option value="2">火曜日</option>
+              <option value="3">水曜日</option>
+              <option value="4">木曜日</option>
+              <option value="5">金曜日</option>
+              <option value="6">土曜日</option>
+              <option value="0">日曜日</option>
+              <option value="7">毎日</option>
+            </select>
+          </div>
+          <div style="flex:1;min-width:160px">
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:6px">送信時刻（JST）</label>
+            <select id="reportHour" style="width:100%;padding:10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;-webkit-appearance:auto;appearance:auto">
+              <option value="0">00:00</option><option value="1">01:00</option><option value="2">02:00</option><option value="3">03:00</option><option value="4">04:00</option><option value="5">05:00</option><option value="6">06:00</option><option value="7">07:00</option><option value="8">08:00</option><option value="9">09:00</option><option value="10">10:00</option><option value="11">11:00</option><option value="12">12:00</option><option value="13">13:00</option><option value="14">14:00</option><option value="15">15:00</option><option value="16">16:00</option><option value="17">17:00</option><option value="18">18:00</option><option value="19">19:00</option><option value="20">20:00</option><option value="21">21:00</option><option value="22">22:00</option><option value="23">23:00</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:20px">
+          <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:6px">対象アンケート</label>
+          <div style="background:#f8f8f8;border:1.5px solid #ddd;border-radius:8px;padding:12px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:8px">
+              <input type="radio" name="reportSurveyMode" value="all" checked style="accent-color:#4A5D4E"> すべてのアンケート
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+              <input type="radio" name="reportSurveyMode" value="select" style="accent-color:#4A5D4E" onchange="toggleReportSurveySelect()"> アンケートを個別選択
+            </label>
+            <div id="reportSurveySelectArea" style="display:none;margin-top:10px;padding:10px;background:white;border:1px solid #ddd;border-radius:6px">
+              <div id="reportSurveyCheckboxes" style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+                <span style="color:#888;font-size:12px">読み込み中...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="saveReportSettings()" style="background:#4A5D4E">💾 設定を保存</button>
+          <span id="reportStatus" style="font-size:13px;display:none;padding:6px 12px;border-radius:6px"></span>
+        </div>
+      </div>
+    </div>
     <!-- タブ3: アンケート管理 -->
     <div id="tab-surveys" class="tab-content">
       <div class="panel">
@@ -834,6 +895,7 @@
     if (name === 'email') initEmailTab();
     if (name === 'emaillog') initEmailLogTab();
     if (name === 'surveys') renderSurveyList();
+    if (name === 'report') initReportTab();
   }
 
   async function loadSurveys() {
