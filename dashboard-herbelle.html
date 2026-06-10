@@ -2611,7 +2611,23 @@
   function toggleDiagReportRangeMode() {
     var mode = document.querySelector('input[name="diagReportRangeMode"]:checked');
     var area = document.getElementById('diagReportRangeDaysArea');
-    if (area) area.style.display = (mode && mode.value === 'days') ? 'flex' : 'none';
+    if (!area) return;
+    if (mode && mode.value === 'days') {
+      area.style.setProperty('display', 'flex', 'important');
+    } else {
+      area.style.setProperty('display', 'none', 'important');
+    }
+  }
+
+  function toggleReportRangeMode() {
+    var mode = document.querySelector('input[name="reportRangeMode"]:checked');
+    var area = document.getElementById('reportRangeDaysArea');
+    if (!area) return;
+    if (mode && mode.value === 'days') {
+      area.style.setProperty('display', 'flex', 'important');
+    } else {
+      area.style.setProperty('display', 'none', 'important');
+    }
   }
 
   async function saveDiagReportSettings() {
