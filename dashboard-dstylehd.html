@@ -627,6 +627,28 @@
           <input type="number" id="qMax" placeholder="最大値（例：100）" style="flex:1">
         </div>
       </div>
+
+      <!-- 設問分岐設定 -->
+      <div class="form-group" id="branchGroup" style="border-top:1px solid #eee;padding-top:14px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:normal">
+          <input type="checkbox" id="qBranchEnabled" style="width:18px;height:18px;flex-shrink:0;-webkit-appearance:checkbox;appearance:checkbox;cursor:pointer" onchange="onBranchToggle()">
+          この設問を条件付きで表示する（分岐）
+        </label>
+        <div id="branchConditionArea" style="display:none;margin-top:10px;background:#f8f4fa;border-radius:8px;padding:12px;font-size:13px">
+          <div style="margin-bottom:8px;color:#666">以下の条件が一致した場合のみ表示：</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <select id="qBranchSourceQ" onchange="onBranchSourceChange()" style="flex:1;min-width:160px;font-size:13px;padding:8px;border:1.5px solid #ddd;border-radius:6px">
+              <option value="">─ 設問を選択 ─</option>
+            </select>
+            <span style="color:#888;flex-shrink:0">が</span>
+            <select id="qBranchSourceVal" style="flex:1;min-width:120px;font-size:13px;padding:8px;border:1.5px solid #ddd;border-radius:6px">
+              <option value="">─ 値を選択 ─</option>
+            </select>
+            <span style="color:#888;flex-shrink:0">のとき</span>
+          </div>
+          <div style="margin-top:8px;font-size:12px;color:#999">※ ラジオボタン・プルダウンの設問のみ選択できます</div>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('questionModal')">キャンセル</button>
@@ -828,9 +850,10 @@
     var typeLabels = { text: 'テキスト', textarea: '長文', radio: 'ラジオ', checkbox: 'チェック', select: 'プルダウン', rating: '★評価', number: '数値', tel: '電話番号', email: 'メール', date: '日付', image_choice: '🖼️画像選択' };
     list.innerHTML = questions.map(function(q, i) {
       var opts = (q.options || []).map(function(o) { return '<span class="option-tag">' + o + '</span>'; }).join('');
+      var branchBadge = q.showIf ? '<span style="font-size:11px;background:#f3e9f9;color:#6B3FA0;border:1px solid #d8b4f0;border-radius:4px;padding:1px 6px;margin-left:4px">🔀 分岐</span>' : '';
       return '<div class="question-item"><div class="question-item-header">' +
         '<span class="question-num">' + (i+1) + '</span>' +
-        '<span class="question-label-text">' + q.label + (q.required ? ' <span style="color:#c0392b;font-size:12px">※必須</span>' : '') + '</span>' +
+        '<span class="question-label-text">' + q.label + (q.required ? ' <span style="color:#c0392b;font-size:12px">※必須</span>' : '') + branchBadge + '</span>' +
         '<span class="question-type-badge">' + (typeLabels[q.type] || q.type) + '</span>' +
         '<div class="question-actions">' +
         '<button class="btn btn-secondary btn-sm" onclick="moveQuestion(' + i + ',-1)">↑</button>' +
@@ -875,6 +898,11 @@
     document.getElementById('qImgPreviewWrap').style.display = 'none';
     document.getElementById('qImgFileInput').value = '';
     document.getElementById('imageChoiceList').innerHTML = '';
+    // 分岐UIリセット
+    document.getElementById('qBranchEnabled').checked = false;
+    document.getElementById('branchConditionArea').style.display = 'none';
+    document.getElementById('qBranchSourceQ').innerHTML = '<option value="">─ 設問を選択 ─</option>';
+    document.getElementById('qBranchSourceVal').innerHTML = '<option value="">─ 値を選択 ─</option>';
     onQTypeChange();
     document.getElementById('optionsList').innerHTML = '';
     addOptionRow(); addOptionRow();
@@ -909,6 +937,17 @@
     if (q.type === 'image_choice') {
       document.getElementById('imageChoiceList').innerHTML = '';
       (q.imageChoices || []).forEach(function(c) { addImageChoiceRow(c.label, c.imageBase64); });
+    }
+    // 分岐設定復元
+    if (q.showIf && q.showIf.questionId) {
+      document.getElementById('qBranchEnabled').checked = true;
+      document.getElementById('branchConditionArea').style.display = 'block';
+      populateBranchSourceQ(q.showIf.questionId, q.showIf.value);
+    } else {
+      document.getElementById('qBranchEnabled').checked = false;
+      document.getElementById('branchConditionArea').style.display = 'none';
+      document.getElementById('qBranchSourceQ').innerHTML = '<option value="">─ 設問を選択 ─</option>';
+      document.getElementById('qBranchSourceVal').innerHTML = '<option value="">─ 値を選択 ─</option>';
     }
     document.getElementById('questionModal').classList.add('show');
   }
@@ -958,6 +997,16 @@
     }
     if (currentQImageBase64) q.imageBase64 = currentQImageBase64;
     if (type === 'image_choice') q.imageChoices = getImageChoices();
+    // 分岐設定を保存
+    if (document.getElementById('qBranchEnabled').checked) {
+      var branchQid = document.getElementById('qBranchSourceQ').value;
+      var branchVal = document.getElementById('qBranchSourceVal').value;
+      if (branchQid && branchVal !== '') {
+        q.showIf = { questionId: branchQid, value: branchVal };
+      }
+    } else {
+      delete q.showIf;
+    }
     if (!currentSurvey.questions) currentSurvey.questions = [];
     if (editingQuestionIndex >= 0) { q.id = currentSurvey.questions[editingQuestionIndex].id; currentSurvey.questions[editingQuestionIndex] = q; }
     else { currentSurvey.questions.push(q); }
@@ -966,6 +1015,50 @@
   }
 
   function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+  // ── 設問分岐UIヘルパー ───────────────────────────────
+  function getBranchableQuestions(excludeIndex) {
+    return (currentSurvey.questions || [])
+      .filter(function(q, i) {
+        return i !== excludeIndex && (q.type === 'radio' || q.type === 'select');
+      });
+  }
+  function onBranchToggle() {
+    var enabled = document.getElementById('qBranchEnabled').checked;
+    document.getElementById('branchConditionArea').style.display = enabled ? 'block' : 'none';
+    if (enabled) populateBranchSourceQ();
+  }
+  function populateBranchSourceQ(selectedQid, selectedVal) {
+    var sel = document.getElementById('qBranchSourceQ');
+    var excludeIdx = editingQuestionIndex;
+    var branchable = getBranchableQuestions(excludeIdx);
+    sel.innerHTML = '<option value="">─ 設問を選択 ─</option>' +
+      branchable.map(function(q) {
+        var label = q.label.length > 24 ? q.label.slice(0, 24) + '…' : q.label;
+        var selected = selectedQid === q.id ? ' selected' : '';
+        return '<option value="' + q.id + '"' + selected + '>' + label.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') + '</option>';
+      }).join('');
+    if (selectedQid) {
+      sel.value = selectedQid;
+      populateBranchSourceVal(selectedQid, selectedVal);
+    }
+  }
+  function onBranchSourceChange() {
+    var qid = document.getElementById('qBranchSourceQ').value;
+    populateBranchSourceVal(qid, '');
+  }
+  function populateBranchSourceVal(qid, selectedVal) {
+    var sel = document.getElementById('qBranchSourceVal');
+    if (!qid) { sel.innerHTML = '<option value="">─ 値を選択 ─</option>'; return; }
+    var q = (currentSurvey.questions || []).find(function(q) { return q.id === qid; });
+    if (!q) { sel.innerHTML = '<option value="">─ 値を選択 ─</option>'; return; }
+    sel.innerHTML = '<option value="">─ 値を選択 ─</option>' +
+      (q.options || []).map(function(opt) {
+        var s = selectedVal === opt ? ' selected' : '';
+        return '<option value="' + opt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') + '"' + s + '>' + opt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</option>';
+      }).join('');
+  }
+  // ────────────────────────────────────────────────────
 
   function renderSurveyList() {
     var list = document.getElementById('surveyList');

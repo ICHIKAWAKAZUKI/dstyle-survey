@@ -183,7 +183,37 @@ app.post('/api/response', async (req, res) => {
     if (!surveyId || !tenant || !answers) return res.status(400).json({ error: 'surveyId, tenant, answers は必須です' });
     try {
         const container = await getContainer();
-        await container.items.create({ id: crypto.randomUUID(), docType: 'survey_response', surveyId, tenant, answers, createdAt: new Date().toISOString() });
+
+        // ── メールアドレス 1日1回 重複チェック ──────────────────
+        const emailAnswerForCheck = Object.values(answers).find(v =>
+            typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
+        );
+        if (emailAnswerForCheck) {
+            const todayJst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+            const tomorrowJst = new Date(new Date(todayJst).getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+            const { resources: dupCheck } = await container.items.query({
+                query: "SELECT TOP 1 c.id FROM c WHERE c.tenant = @tenant AND c.surveyId = @surveyId AND c.docType = 'survey_response' AND c.emailAddress = @email AND c.createdAt >= @today AND c.createdAt < @tomorrow",
+                parameters: [
+                    { name: "@tenant",   value: tenant },
+                    { name: "@surveyId", value: surveyId },
+                    { name: "@email",    value: emailAnswerForCheck.trim().toLowerCase() },
+                    { name: "@today",    value: todayJst + 'T00:00:00.000Z' },
+                    { name: "@tomorrow", value: tomorrowJst + 'T00:00:00.000Z' }
+                ]
+            }).fetchAll();
+            if (dupCheck.length > 0) {
+                return res.status(429).json({ error: '本日すでに回答済みです。同じメールアドレスでの回答は1日1回までとなっております。' });
+            }
+        }
+        // ────────────────────────────────────────────────────────
+
+        await container.items.create({
+            id: crypto.randomUUID(),
+            docType: 'survey_response',
+            surveyId, tenant, answers,
+            emailAddress: emailAnswerForCheck ? emailAnswerForCheck.trim().toLowerCase() : null,
+            createdAt: new Date().toISOString()
+        });
         return res.status(201).json({ status: 'ok' });
     } catch (e) { return res.status(500).json({ error: e.message }); }
 });

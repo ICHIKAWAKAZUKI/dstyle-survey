@@ -318,11 +318,35 @@ app.http('response', {
                 const { surveyId, tenant, answers } = body;
                 if (!surveyId || !tenant || !answers) return { status: 400, headers: { 'Content-Type': 'application/json' }, jsonBody: { error: 'surveyId, tenant, answers は必須です' } };
 
+                // ── メールアドレス 1日1回 重複チェック ──────────────────
+                const emailAnswerForCheck = Object.values(answers).find(v =>
+                    typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
+                );
+                if (emailAnswerForCheck) {
+                    const todayJst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10); // YYYY-MM-DD (JST)
+                    const tomorrowJst = new Date(new Date(todayJst).getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+                    const { resources: dupCheck } = await container.items.query({
+                        query: "SELECT TOP 1 c.id FROM c WHERE c.tenant = @tenant AND c.surveyId = @surveyId AND c.docType = 'survey_response' AND c.emailAddress = @email AND c.createdAt >= @today AND c.createdAt < @tomorrow",
+                        parameters: [
+                            { name: "@tenant",   value: tenant },
+                            { name: "@surveyId", value: surveyId },
+                            { name: "@email",    value: emailAnswerForCheck.trim().toLowerCase() },
+                            { name: "@today",    value: todayJst + 'T00:00:00.000Z' },
+                            { name: "@tomorrow", value: tomorrowJst + 'T00:00:00.000Z' }
+                        ]
+                    }).fetchAll();
+                    if (dupCheck.length > 0) {
+                        return { status: 429, headers: { 'Content-Type': 'application/json' }, jsonBody: { error: '本日すでに回答済みです。同じメールアドレスでの回答は1日1回までとなっております。' } };
+                    }
+                }
+                // ────────────────────────────────────────────────────────
+
                 // 回答を保存
                 await container.items.create({
                     id: crypto.randomUUID(),
                     docType: 'survey_response',
                     surveyId, tenant, answers,
+                    emailAddress: emailAnswerForCheck ? emailAnswerForCheck.trim().toLowerCase() : null,
                     createdAt: new Date().toISOString()
                 });
 

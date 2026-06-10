@@ -74,6 +74,7 @@ input[type="number"]::-webkit-inner-spin-button,
     .thanks-message { font-size: 16px; color: #555; line-height: 1.8; margin-bottom: 24px; }
     .thanks-sub { font-size: 14px; color: #888; line-height: 1.7; padding: 16px; background: #f5f7f5; border-radius: 8px; }
     .divider { border: none; border-top: 1px solid #eee; margin: 8px 0 28px; }
+    .section[data-hidden="true"] { display: none; }
     .field-error input, .field-error textarea, .field-error select { border-color: #e74c3c !important; background: #fff8f8 !important; }
     .field-error .radio-group .radio-label { border-color: #e74c3c; }
     .field-error-msg { color: #e74c3c; font-size: 13px; margin-top: 6px; display: none; }
@@ -182,7 +183,14 @@ input[type="number"]::-webkit-inner-spin-button,
     var color = getColor();
     var html = '';
     survey.questions.forEach(function(q, i) {
-      html += '<div class="section" id="section_' + q.id + '">';
+      // 分岐条件があれば data-showif 属性を付与し初期非表示
+      var showIfAttr = '';
+      var initialHidden = false;
+      if (q.showIf && q.showIf.questionId && q.showIf.value !== undefined) {
+        showIfAttr = ' data-showif-qid="' + esc(q.showIf.questionId) + '" data-showif-val="' + esc(q.showIf.value) + '" data-hidden="true"';
+        initialHidden = true;
+      }
+      html += '<div class="section" id="section_' + q.id + '"' + showIfAttr + '>';
       html += '<div class="section-label" style="color:' + color + '">';
       html += '<span class="num" style="background:' + color + '">' + (i + 1) + '</span>';
       html += esc(q.label);
@@ -279,6 +287,45 @@ input[type="number"]::-webkit-inner-spin-button,
 
     bindStarEvents();
     bindImageChoiceEvents();
+
+    // ── 設問分岐ロジック ────────────────────────────────
+    function evaluateBranching() {
+      document.querySelectorAll('.section[data-showif-qid]').forEach(function(section) {
+        var targetQid = section.getAttribute('data-showif-qid');
+        var targetVal = section.getAttribute('data-showif-val');
+        var currentVal = '';
+        // radio
+        var radioChecked = document.querySelector('input[name="q_' + targetQid + '"]:checked');
+        if (radioChecked) { currentVal = radioChecked.value; }
+        // select
+        var selectEl = document.getElementById('q_' + targetQid);
+        if (selectEl && selectEl.tagName === 'SELECT') { currentVal = selectEl.value; }
+        // text/email等
+        if (!currentVal && selectEl && selectEl.tagName === 'INPUT') { currentVal = selectEl.value.trim(); }
+
+        var match = (currentVal === targetVal);
+        section.setAttribute('data-hidden', match ? 'false' : 'true');
+        // 非表示になった設問の入力値をリセット
+        if (!match) {
+          section.querySelectorAll('input, select, textarea').forEach(function(el) {
+            if (el.type === 'radio' || el.type === 'checkbox') { el.checked = false; }
+            else { el.value = ''; }
+          });
+          section.querySelectorAll('.radio-label').forEach(function(l) { l.classList.remove('selected'); });
+          section.querySelectorAll('.image-choice-item').forEach(function(item) { item.classList.remove('selected'); });
+        }
+      });
+    }
+    // ラジオ・select・テキスト変更時に分岐を再評価
+    form.addEventListener('change', function(e) {
+      if (e.target.type === 'radio' || e.target.tagName === 'SELECT') { evaluateBranching(); }
+    });
+    form.addEventListener('input', function(e) {
+      if (e.target.type !== 'radio' && e.target.tagName !== 'SELECT') { evaluateBranching(); }
+    });
+    evaluateBranching(); // 初期状態を評価
+    // ────────────────────────────────────────────────────
+
     form.addEventListener('keydown', function(e) { if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') e.preventDefault(); });
 
     form.addEventListener('submit', async function(e) {
@@ -296,6 +343,8 @@ input[type="number"]::-webkit-inner-spin-button,
       survey.questions.forEach(function(q) {
         if (!q.required) return;
         var section = document.getElementById('section_' + q.id);
+        // 分岐で非表示の設問はスキップ
+        if (section && section.getAttribute('data-hidden') === 'true') return;
         var isEmpty = false;
         if (q.type === 'text' || q.type === 'textarea' || q.type === 'tel' || q.type === 'email' || q.type === 'number' || q.type === 'date') {
           var el = document.getElementById('q_' + q.id);
@@ -327,6 +376,9 @@ input[type="number"]::-webkit-inner-spin-button,
 
       var answers = {};
       survey.questions.forEach(function(q) {
+        // 分岐で非表示の設問は回答に含めない
+        var section = document.getElementById('section_' + q.id);
+        if (section && section.getAttribute('data-hidden') === 'true') return;
         if (q.type === 'text' || q.type === 'textarea' || q.type === 'select' ||
             q.type === 'tel' || q.type === 'email' || q.type === 'number' || q.type === 'date') {
           answers[q.id] = document.getElementById('q_' + q.id).value;
